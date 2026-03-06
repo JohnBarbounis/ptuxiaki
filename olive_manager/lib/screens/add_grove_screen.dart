@@ -1,6 +1,7 @@
 // Αρχείο: lib/screens/add_grove_screen.dart
 import 'package:flutter/material.dart';
 import '../models/olive_grove.dart';
+import '../services/database_helper.dart';
 
 class AddGroveScreen extends StatefulWidget {
   const AddGroveScreen({super.key});
@@ -18,17 +19,22 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   final _treesController = TextEditingController();
 
   // Συνάρτηση αποθήκευσης
-  void _saveGrove() {
+  Future<void> _saveGrove() async {
     if (_formKey.currentState!.validate()) {
-      // Αν η φόρμα είναι έγκυρη, φτιάχνουμε το αντικείμενο
       final newGrove = OliveGrove(
-        id: DateTime.now().toString(), // Προσωρινό ID
+        id: DateTime.now().millisecondsSinceEpoch
+            .toString(), // Πιο ασφαλές μοναδικό ID
         name: _nameController.text,
         treeCount: int.parse(_treesController.text),
       );
 
-      // Κλείνουμε την οθόνη και επιστρέφουμε το νέο χωράφι στην προηγούμενη οθόνη
-      Navigator.of(context).pop(newGrove);
+      // Αποθήκευση στη μόνιμη βάση δεδομένων!
+      await DatabaseHelper.instance.insertGrove(newGrove);
+
+      // Επιστρέφουμε 'true' στην προηγούμενη οθόνη για να ξέρει ότι έγινε αλλαγή
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
     }
   }
 
@@ -55,10 +61,21 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Παρακαλώ εισάγετε όνομα';
                   }
-                  return null;
+
+                  // Regular Expression: Δέχεται μόνο Αγγλικά, Ελληνικά, Αριθμούς και Κενά.
+                  // (Καλύπτει και τα τονισμένα ελληνικά φωνήεντα)
+                  final nameRegex = RegExp(
+                    r'^[a-zA-Zα-ωΑ-ΩάέήίόύώΆΈΉΊΌΎΏ0-9\s]+$',
+                  );
+
+                  if (!nameRegex.hasMatch(value)) {
+                    return 'Επιτρέπονται μόνο Ελληνικοί/Αγγλικοί χαρακτήρες και αριθμοί';
+                  }
+
+                  return null; // Αν περάσει τους ελέγχους, είναι έγκυρο!
                 },
               ),
               const SizedBox(height: 16),

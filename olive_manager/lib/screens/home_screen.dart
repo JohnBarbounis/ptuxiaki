@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/olive_grove.dart';
 import 'add_grove_screen.dart';
+import '../services/database_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,20 +12,33 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Εδώ θα αποθηκεύουμε προσωρινά (στη μνήμη) τα χωράφια μας
-  final List<OliveGrove> myGroves = [];
+  List<OliveGrove> myGroves = [];
+  bool isLoading = false; // Μεταβλητή για να δείχνουμε ένα "κυκλάκι" φόρτωσης
 
-  // Συνάρτηση που ανοίγει την οθόνη προσθήκης
+  @override
+  void initState() {
+    super.initState();
+    _refreshGroves(); // Φόρτωσε τα χωράφια με το που ανοίγει η εφαρμογή
+  }
+
+  // Συνάρτηση που διαβάζει τα δεδομένα από την SQLite
+  Future<void> _refreshGroves() async {
+    setState(() => isLoading = true);
+
+    // Ζητάμε από τη βάση όλα τα χωράφια
+    myGroves = await DatabaseHelper.instance.getAllGroves();
+
+    setState(() => isLoading = false);
+  }
+
   Future<void> _navigateToAddGrove() async {
-    final result = await Navigator.of(context).push<OliveGrove>(
-      MaterialPageRoute(builder: (context) => const AddGroveScreen()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const AddGroveScreen()));
 
-    // Αν ο χρήστης πάτησε "Αποθήκευση" (δεν γύρισε πίσω απλά)
-    if (result != null) {
-      setState(() {
-        myGroves.add(result); // Βάζουμε το νέο χωράφι στη λίστα μας
-      });
+    // Αν η φόρμα επέστρεψε true (δηλαδή σώθηκε νέο χωράφι), ξαναδιάβασε τη βάση
+    if (result == true) {
+      _refreshGroves();
     }
   }
 
@@ -39,8 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green[700],
         centerTitle: true,
       ),
-      // Αν η λίστα είναι άδεια δείχνουμε κείμενο, αλλιώς φτιάχνουμε μια λίστα με κάρτες
-      body: myGroves.isEmpty
+      // Αν φορτώνει, δείξε κυκλάκι. Αλλιώς, αν είναι άδεια δείξε μήνυμα, αλλιώς τη λίστα.
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
+          : myGroves.isEmpty
           ? const Center(
               child: Text(
                 'Δεν έχετε προσθέσει κανένα χωράφι ακόμα.',
@@ -69,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: Text('${grove.treeCount} δέντρα'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () {
-                      // Εδώ θα ανοίγουμε τις λεπτομέρειες του χωραφιού αργότερα!
+                      // TODO: Άνοιγμα λεπτομερειών χωραφιού
                     },
                   ),
                 );
