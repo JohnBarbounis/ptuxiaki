@@ -1,6 +1,6 @@
 // Αρχείο: lib/screens/add_task_screen.dart
 import 'package:flutter/material.dart';
-import '../models/task.dart';
+import '../models/tasks.dart';
 import '../services/database_helper.dart';
 
 class AddTaskScreen extends StatefulWidget {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/olive_grove.dart';
 import 'add_grove_screen.dart';
 import '../services/database_helper.dart';
+import 'grove_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -85,7 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: Text('${grove.treeCount} δέντρα'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () {
-                      // TODO: Άνοιγμα λεπτομερειών χωραφιού
+                      // Άνοιγμα λεπτομερειών χωραφιού
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              GroveDetailsScreen(grove: grove),
+                        ),
+                      );
                     },
                   ),
                 );

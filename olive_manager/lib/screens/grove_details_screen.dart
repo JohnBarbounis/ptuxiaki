@@ -1,7 +1,7 @@
 // Αρχείο: lib/screens/grove_details_screen.dart
 import 'package:flutter/material.dart';
 import '../models/olive_grove.dart';
-import '../models/task.dart';
+import '../models/tasks.dart';
 import '../services/database_helper.dart';
 import 'add_task_screen.dart'; // Θα το φτιάξουμε στο επόμενο βήμα!
 
