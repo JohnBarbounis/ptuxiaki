@@ -101,4 +101,10 @@ class DatabaseHelper {
 
     return result.map((json) => Task.fromMap(json)).toList();
   }
+
+  // Διαγραφή μίας εργασίας (Delete)
+  Future<int> deleteTask(String id) async {
+    final db = await instance.database;
+    return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+  }
 }

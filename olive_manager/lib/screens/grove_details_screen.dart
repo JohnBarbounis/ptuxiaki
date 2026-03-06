@@ -119,34 +119,107 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
                           itemCount: tasks.length,
                           itemBuilder: (context, index) {
                             final task = tasks[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                            return Dismissible(
+                              // Κάθε Dismissible χρειάζεται ένα μοναδικό κλειδί (το ID της εργασίας)
+                              key: Key(task.id),
+
+                              // Κατεύθυνση: από δεξιά προς τα αριστερά
+                              direction: DismissDirection.endToStart,
+
+                              // Το κόκκινο φόντο με τον κάδο που εμφανίζεται από πίσω όταν σέρνουμε
+                              background: Container(
+                                color: Colors.red,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
                               ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.green[100],
-                                  child: const Icon(
-                                    Icons.agriculture,
-                                    color: Colors.green,
+
+                              // Εμφάνιση παραθύρου επιβεβαίωσης πριν τη διαγραφή
+                              confirmDismiss: (direction) async {
+                                return await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text("Επιβεβαίωση"),
+                                      content: const Text(
+                                        "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία;",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
+                                          child: const Text("ΑΚΥΡΩΣΗ"),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text(
+                                            "ΔΙΑΓΡΑΦΗ",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+
+                              // Τι θα γίνει αν ο χρήστης πατήσει "ΔΙΑΓΡΑΦΗ"
+                              onDismissed: (direction) async {
+                                // 1. Διαγραφή από τη βάση δεδομένων
+                                await DatabaseHelper.instance.deleteTask(
+                                  task.id,
+                                );
+
+                                // 2. Ανανέωση της λίστας και των συνολικών εξόδων
+                                _loadTasks();
+
+                                // 3. Εμφάνιση ενός μικρού μηνύματος στο κάτω μέρος
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Η εργασία διαγράφηκε επιτυχώς',
+                                    ),
                                   ),
+                                );
+                              },
+
+                              // Η κάρτα μας όπως ήταν πριν, τυλιγμένη πλέον στο Dismissible
+                              child: Card(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
                                 ),
-                                title: Text(
-                                  task.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.green[100],
+                                    child: const Icon(
+                                      Icons.agriculture,
+                                      color: Colors.green,
+                                    ),
                                   ),
-                                ),
-                                subtitle: Text(
-                                  '${task.type} • ${task.date.day}/${task.date.month}/${task.date.year}',
-                                ),
-                                trailing: Text(
-                                  '${task.cost.toStringAsFixed(2)} €',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.redAccent,
+                                  title: Text(
+                                    task.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${task.type} • ${task.date.day}/${task.date.month}/${task.date.year}',
+                                  ),
+                                  trailing: Text(
+                                    '${task.cost.toStringAsFixed(2)} €',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.redAccent,
+                                    ),
                                   ),
                                 ),
                               ),
