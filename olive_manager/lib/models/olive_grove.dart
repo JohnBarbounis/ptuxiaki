@@ -3,21 +3,29 @@
 class OliveGrove {
   final String id;
   final String name;
-  final int treeCount;
+  final double area; // Στρέμματα (αντί για treeCount)
+  final double? lat; // Γεωγραφικό Πλάτος
+  final double? lng; // Γεωγραφικό Μήκος
 
-  OliveGrove({required this.id, required this.name, required this.treeCount});
+  OliveGrove({
+    required this.id,
+    required this.name,
+    required this.area,
+    this.lat,
+    this.lng,
+  });
 
-  // Μετατροπή του αντικειμένου σε Map (για εγγραφή στη βάση)
   Map<String, dynamic> toMap() {
-    return {'id': id, 'name': name, 'treeCount': treeCount};
+    return {'id': id, 'name': name, 'area': area, 'lat': lat, 'lng': lng};
   }
 
-  // Δημιουργία αντικειμένου από Map (για ανάγνωση από τη βάση)
   factory OliveGrove.fromMap(Map<String, dynamic> map) {
     return OliveGrove(
       id: map['id'],
       name: map['name'],
-      treeCount: map['treeCount'],
+      area: map['area'],
+      lat: map['lat'],
+      lng: map['lng'],
     );
   }
 }

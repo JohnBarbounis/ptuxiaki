@@ -1,5 +1,7 @@
 // Αρχείο: lib/screens/add_grove_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 
@@ -11,27 +13,37 @@ class AddGroveScreen extends StatefulWidget {
 }
 
 class _AddGroveScreenState extends State<AddGroveScreen> {
-  // Το κλειδί για να ελέγχουμε τη φόρμα
   final _formKey = GlobalKey<FormState>();
-
-  // Controllers για να διαβάζουμε τι γράφει ο χρήστης
   final _nameController = TextEditingController();
-  final _treesController = TextEditingController();
+  final _areaController =
+      TextEditingController(); // Controller για τα στρέμματα
 
-  // Συνάρτηση αποθήκευσης
+  // Αρχικό κέντρο χάρτη (Ελλάδα - Αθήνα)
+  final MapController _mapController = MapController();
+  LatLng? _selectedLocation; // Εδώ θα αποθηκεύεται η πινέζα
+
   Future<void> _saveGrove() async {
     if (_formKey.currentState!.validate()) {
+      if (_selectedLocation == null) {
+        // Ειδοποίηση αν δεν έβαλε πινέζα
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Παρακαλώ επιλέξτε τοποθεσία στον χάρτη!'),
+          ),
+        );
+        return;
+      }
+
       final newGrove = OliveGrove(
-        id: DateTime.now().millisecondsSinceEpoch
-            .toString(), // Πιο ασφαλές μοναδικό ID
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
-        treeCount: int.parse(_treesController.text),
+        area: double.parse(_areaController.text), // Στρέμματα
+        lat: _selectedLocation!.latitude,
+        lng: _selectedLocation!.longitude,
       );
 
-      // Αποθήκευση στη μόνιμη βάση δεδομένων!
       await DatabaseHelper.instance.insertGrove(newGrove);
 
-      // Επιστρέφουμε 'true' στην προηγούμενη οθόνη για να ξέρει ότι έγινε αλλαγή
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -44,61 +56,93 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
       appBar: AppBar(
         title: const Text('Νέο Χωράφι', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.green[700],
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // Άσπρο βελάκι επιστροφής
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Όνομα Χωραφιού (π.χ. Πάνω Αμπέλι)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Παρακαλώ εισάγετε όνομα';
-                  }
-
-                  // Regular Expression: Δέχεται μόνο Αγγλικά, Ελληνικά, Αριθμούς και Κενά.
-                  // (Καλύπτει και τα τονισμένα ελληνικά φωνήεντα)
-                  final nameRegex = RegExp(
-                    r'^[a-zA-Zα-ωΑ-ΩάέήίόύώΆΈΉΊΌΎΏ0-9\s]+$',
-                  );
-
-                  if (!nameRegex.hasMatch(value)) {
-                    return 'Επιτρέπονται μόνο Ελληνικοί/Αγγλικοί χαρακτήρες και αριθμοί';
-                  }
-
-                  return null; // Αν περάσει τους ελέγχους, είναι έγκυρο!
-                },
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Όνομα Χωραφιού',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Εισάγετε όνομα' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _areaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Στρέμματα',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Πατήστε στον χάρτη για να βάλετε πινέζα:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _treesController,
-                decoration: const InputDecoration(
-                  labelText: 'Αριθμός Δέντρων',
-                  border: OutlineInputBorder(),
+            ),
+
+            // Ο διαδραστικός χάρτης!
+            Expanded(
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: const LatLng(
+                    38.2462,
+                    21.7351,
+                  ), // Κέντρο (π.χ. Πάτρα, μπορείς να βάλεις ότι θες)
+                  initialZoom: 6.0,
+                  onTap: (tapPosition, point) {
+                    setState(() {
+                      _selectedLocation =
+                          point; // Βάζουμε την πινέζα εκεί που πάτησε
+                    });
+                  },
                 ),
-                keyboardType:
-                    TextInputType.number, // Ανοίγει αριθμητικό πληκτρολόγιο
-                validator: (value) {
-                  if (value == null ||
-                      value.isEmpty ||
-                      int.tryParse(value) == null) {
-                    return 'Παρακαλώ εισάγετε έγκυρο αριθμό';
-                  }
-                  return null;
-                },
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.olive_manager',
+                  ),
+                  if (_selectedLocation != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _selectedLocation!,
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity, // Το κουμπί πιάνει όλο το πλάτος
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -106,13 +150,13 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                   ),
                   onPressed: _saveGrove,
                   child: const Text(
-                    'Αποθήκευση',
+                    'Αποθήκευση Χωραφιού',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

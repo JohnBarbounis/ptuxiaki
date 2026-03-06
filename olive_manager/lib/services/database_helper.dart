@@ -49,6 +49,16 @@ class DatabaseHelper {
       FOREIGN KEY (groveId) REFERENCES groves (id) ON DELETE CASCADE
     )
     ''');
+
+    await db.execute('''
+    CREATE TABLE groves (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      area REAL NOT NULL,
+      lat REAL,
+      lng REAL
+    )
+    ''');
   }
 
   // --- Λειτουργίες (CRUD) ---

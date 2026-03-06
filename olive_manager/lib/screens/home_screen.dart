@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         grove.name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text('${grove.treeCount} δέντρα'),
+                      subtitle: Text('${grove.area} στρέμματα'),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
                         Navigator.of(context).push(
