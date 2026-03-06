@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
-import 'add_task_screen.dart'; // Θα το φτιάξουμε στο επόμενο βήμα!
+import 'add_task_screen.dart';
 
 class GroveDetailsScreen extends StatefulWidget {
-  final OliveGrove grove; // Το χωράφι που επιλέξαμε
+  final OliveGrove grove;
 
   const GroveDetailsScreen({super.key, required this.grove});
 
@@ -17,6 +17,7 @@ class GroveDetailsScreen extends StatefulWidget {
 class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
   List<Task> tasks = [];
   bool isLoading = false;
+  double totalCost = 0.0; // ΝΕΟ: Εδώ θα κρατάμε το άθροισμα των εξόδων
 
   @override
   void initState() {
@@ -24,11 +25,25 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
     _loadTasks();
   }
 
-  // Διαβάζει τις εργασίες ΜΟΝΟ για αυτό το χωράφι
   Future<void> _loadTasks() async {
     setState(() => isLoading = true);
-    tasks = await DatabaseHelper.instance.getTasksForGrove(widget.grove.id);
-    setState(() => isLoading = false);
+
+    // Φέρνουμε τις εργασίες από τη βάση
+    final fetchedTasks = await DatabaseHelper.instance.getTasksForGrove(
+      widget.grove.id,
+    );
+
+    // Υπολογισμός του συνολικού κόστους
+    double cost = 0.0;
+    for (var task in fetchedTasks) {
+      cost += task.cost;
+    }
+
+    setState(() {
+      tasks = fetchedTasks;
+      totalCost = cost; // Ενημερώνουμε τη μεταβλητή μας
+      isLoading = false;
+    });
   }
 
   Future<void> _navigateToAddTask() async {
@@ -39,7 +54,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
     );
 
     if (result == true) {
-      _loadTasks(); // Αν προστέθηκε νέα εργασία, ανανέωσε τη λίστα
+      _loadTasks(); // Ξαναφορτώνει και υπολογίζει ξανά τα έξοδα!
     }
   }
 
@@ -56,43 +71,90 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : tasks.isEmpty
-          ? const Center(
-              child: Text('Δεν υπάρχουν εργασίες για αυτό το χωράφι.'),
-            )
-          : ListView.builder(
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
+          : Column(
+              children: [
+                // ΝΕΟ: Το πλαίσιο συνολικών εξόδων στην κορυφή
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
                     horizontal: 16,
-                    vertical: 8,
                   ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.green[100],
-                      child: const Icon(Icons.agriculture, color: Colors.green),
-                    ),
-                    title: Text(
-                      task.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    // Εμφάνιση τύπου και ημερομηνίας (μορφοποιημένη απλά)
-                    subtitle: Text(
-                      '${task.type} • ${task.date.day}/${task.date.month}/${task.date.year}',
-                    ),
-                    trailing: Text(
-                      '${task.cost} €',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.redAccent,
+                  color: Colors.green[50], // Απαλό πράσινο φόντο
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Συνολικά Έξοδα Χωραφιού',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${totalCost.toStringAsFixed(2)} €', // Δείχνει το ποσό με 2 δεκαδικά ψηφία
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+                const Divider(
+                  height: 1,
+                  thickness: 2,
+                ), // Μια γραμμή διαχωρισμού
+                // Η λίστα με τις εργασίες
+                Expanded(
+                  child: tasks.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Δεν υπάρχουν εργασίες για αυτό το χωράφι.',
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: tasks.length,
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.green[100],
+                                  child: const Icon(
+                                    Icons.agriculture,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                                title: Text(
+                                  task.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${task.type} • ${task.date.day}/${task.date.month}/${task.date.year}',
+                                ),
+                                trailing: Text(
+                                  '${task.cost.toStringAsFixed(2)} €',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _navigateToAddTask,
