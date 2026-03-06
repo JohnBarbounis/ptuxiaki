@@ -4,6 +4,7 @@ import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
 import 'add_task_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;
@@ -58,6 +59,35 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
     }
   }
 
+  // Συνάρτηση για άνοιγμα του Google Maps
+  Future<void> _navigateToGrove() async {
+    // Ελέγχουμε αν υπάρχουν συντεταγμένες
+    if (widget.grove.lat == null || widget.grove.lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Δεν υπάρχει αποθηκευμένη τοποθεσία για αυτό το χωράφι.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Δημιουργία του URL για Οδηγίες Πλοήγησης (Directions)
+    final Uri url = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=${widget.grove.lat},${widget.grove.lng}',
+    );
+
+    // Ζητάμε από το κινητό να ανοίξει το link (κατά προτίμηση στην εφαρμογή Google Maps)
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Αδυναμία ανοίγματος του Google Maps.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,6 +133,30 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen> {
                     ],
                   ),
                 ),
+                // ΝΕΟ: Κουμπί Πλοήγησης (Εμφανίζεται μόνο αν υπάρχουν συντεταγμένες)
+                if (widget.grove.lat != null && widget.grove.lng != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: _navigateToGrove,
+                      icon: const Icon(Icons.navigation, color: Colors.white),
+                      label: const Text(
+                        'Πλοήγηση στο Χωράφι',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors
+                            .blue[700], // Μπλε χρώμα για να ξεχωρίζει από τις αγροτικές εργασίες
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
                 const Divider(
                   height: 1,
                   thickness: 2,

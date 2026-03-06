@@ -27,15 +27,6 @@ class DatabaseHelper {
 
   // Δημιουργία των πινάκων με SQL
   Future _createDB(Database db, int version) async {
-    // Πίνακας Χωραφιών
-    await db.execute('''
-    CREATE TABLE groves (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      treeCount INTEGER NOT NULL
-    )
-    ''');
-
     // ΝΕΟ: Πίνακας Εργασιών
     await db.execute('''
     CREATE TABLE tasks (

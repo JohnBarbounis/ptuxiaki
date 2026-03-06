@@ -23,7 +23,7 @@ class OliveGrove {
     return OliveGrove(
       id: map['id'],
       name: map['name'],
-      area: map['area'],
+      area: (map['area'] ?? 0.0).toDouble(),
       lat: map['lat'],
       lng: map['lng'],
     );
