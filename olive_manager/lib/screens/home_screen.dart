@@ -68,32 +68,98 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: myGroves.length,
               itemBuilder: (context, index) {
                 final grove = myGroves[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                return Dismissible(
+                  // Το κλειδί πρέπει να είναι μοναδικό για κάθε στοιχείο
+                  key: Key(grove.id),
+
+                  // Κατεύθυνση: από δεξιά προς τα αριστερά
+                  direction: DismissDirection.endToStart,
+
+                  // Το κόκκινο φόντο με τον κάδο
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(
+                      Icons.delete,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.nature,
-                      color: Colors.green,
-                      size: 32,
-                    ),
-                    title: Text(
-                      grove.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text('${grove.treeCount} δέντρα'),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      // Άνοιγμα λεπτομερειών χωραφιού
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              GroveDetailsScreen(grove: grove),
+
+                  // Παράθυρο επιβεβαίωσης με προειδοποίηση!
+                  confirmDismiss: (direction) async {
+                    return await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text("Διαγραφή Χωραφιού"),
+                          content: const Text(
+                            "Είστε σίγουροι; Η διαγραφή του χωραφιού θα διαγράψει οριστικά ΚΑΙ ΟΛΕΣ τις εργασίες που έχετε καταχωρήσει σε αυτό!",
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text("ΑΚΥΡΩΣΗ"),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text(
+                                "ΔΙΑΓΡΑΦΗ",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+
+                  // Αν ο χρήστης πατήσει Διαγραφή
+                  onDismissed: (direction) async {
+                    // 1. Διαγραφή από τη βάση δεδομένων
+                    await DatabaseHelper.instance.deleteGrove(grove.id);
+
+                    // 2. Ανανέωση της λίστας
+                    _refreshGroves();
+
+                    // 3. Εμφάνιση μηνύματος
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Το χωράφι και οι εργασίες του διαγράφηκαν',
                         ),
-                      );
-                    },
+                      ),
+                    );
+                  },
+
+                  // Η κάρτα του χωραφιού μας όπως ήταν
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.nature,
+                        color: Colors.green,
+                        size: 32,
+                      ),
+                      title: Text(
+                        grove.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text('${grove.treeCount} δέντρα'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                GroveDetailsScreen(grove: grove),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               },

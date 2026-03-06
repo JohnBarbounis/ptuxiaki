@@ -4,6 +4,7 @@ import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
 import 'add_task_screen.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;

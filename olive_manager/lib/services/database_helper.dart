@@ -107,4 +107,15 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
+
+  // Διαγραφή ενός Χωραφιού ΚΑΙ όλων των εργασιών του (Cascading Delete)
+  Future<void> deleteGrove(String id) async {
+    final db = await instance.database;
+
+    // 1. Πρώτα διαγράφουμε όλες τις εργασίες που έχουν αυτό το groveId
+    await db.delete('tasks', where: 'groveId = ?', whereArgs: [id]);
+
+    // 2. Μετά διαγράφουμε το ίδιο το χωράφι από τον πίνακα groves
+    await db.delete('groves', where: 'id = ?', whereArgs: [id]);
+  }
 }
