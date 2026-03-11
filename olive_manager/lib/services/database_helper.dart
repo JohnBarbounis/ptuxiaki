@@ -156,4 +156,30 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.delete('harvests', where: 'id = ?', whereArgs: [id]);
   }
+
+  // --- Λειτουργίες Στατιστικών (Aggregations) ---
+
+  // Επιστρέφει το συνολικό κόστος όλων των εργασιών από όλα τα χωράφια
+  Future<double> getTotalExpenses() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT SUM(cost) as total FROM tasks');
+
+    if (result.first['total'] != null) {
+      return (result.first['total'] as num).toDouble();
+    }
+    return 0.0; // Αν δεν υπάρχουν εργασίες, επιστρέφει 0
+  }
+
+  // Επιστρέφει τα συνολικά λίτρα λαδιού από όλα τα χωράφια
+  Future<double> getTotalOilProduction() async {
+    final db = await instance.database;
+    final result = await db.rawQuery(
+      'SELECT SUM(oilVolume) as total FROM harvests',
+    );
+
+    if (result.first['total'] != null) {
+      return (result.first['total'] as num).toDouble();
+    }
+    return 0.0;
+  }
 }
