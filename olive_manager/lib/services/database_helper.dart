@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
+import '../models/harvest.dart';
 
 class DatabaseHelper {
   // Δημιουργούμε ένα Singleton (μόνο ένα instance της βάσης σε όλο το app)
@@ -109,14 +110,32 @@ class DatabaseHelper {
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Διαγραφή ενός Χωραφιού ΚΑΙ όλων των εργασιών του (Cascading Delete)
+  // --- Λειτουργίες Συγκομιδής ---
+  Future<void> insertHarvest(Harvest harvest) async {
+    final db = await instance.database;
+    await db.insert(
+      'harvests',
+      harvest.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Harvest>> getHarvestsForGrove(String groveId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'harvests',
+      where: 'groveId = ?',
+      whereArgs: [groveId],
+      orderBy: 'date DESC',
+    );
+    return result.map((json) => Harvest.fromMap(json)).toList();
+  }
+
+  // --- ΕΝΗΜΕΡΩΣΗ: Cascading Delete ---
   Future<void> deleteGrove(String id) async {
     final db = await instance.database;
-
-    // 1. Πρώτα διαγράφουμε όλες τις εργασίες που έχουν αυτό το groveId
     await db.delete('tasks', where: 'groveId = ?', whereArgs: [id]);
-
-    // 2. Μετά διαγράφουμε το ίδιο το χωράφι από τον πίνακα groves
+    await db.delete('harvests', where: 'groveId = ?', whereArgs: [id]); // ΝΕΟ
     await db.delete('groves', where: 'id = ?', whereArgs: [id]);
   }
 }
