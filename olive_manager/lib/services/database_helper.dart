@@ -51,6 +51,19 @@ class DatabaseHelper {
       lng REAL
     )
     ''');
+
+    // 3. Πίνακας Συγκομιδής (ΝΕΟ)
+    await db.execute('''
+    CREATE TABLE harvests (
+      id TEXT PRIMARY KEY,
+      groveId TEXT NOT NULL,
+      date TEXT NOT NULL,
+      olivesWeight REAL NOT NULL,
+      oilVolume REAL NOT NULL,
+      acidity REAL NOT NULL,
+      FOREIGN KEY (groveId) REFERENCES groves (id) ON DELETE CASCADE
+    )
+    ''');
   }
 
   // --- Λειτουργίες (CRUD) ---
@@ -137,5 +150,10 @@ class DatabaseHelper {
     await db.delete('tasks', where: 'groveId = ?', whereArgs: [id]);
     await db.delete('harvests', where: 'groveId = ?', whereArgs: [id]); // ΝΕΟ
     await db.delete('groves', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteHarvest(String id) async {
+    final db = await instance.database;
+    return await db.delete('harvests', where: 'id = ?', whereArgs: [id]);
   }
 }
