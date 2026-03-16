@@ -8,6 +8,7 @@ import '../services/database_helper.dart';
 import 'add_grove_screen.dart';
 import 'grove_details_screen.dart';
 import 'upcoming_tasks_screen.dart';
+import '../services/pdf_service.dart'; // ΝΕΟ IMPORT
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -332,6 +333,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.green[700],
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+            tooltip: 'Εξαγωγή σε PDF',
+            onPressed: () async {
+              // Δείχνουμε ένα μήνυμα "Αναμονής"
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Δημιουργία PDF... Παρακαλώ περιμένετε.'),
+                ),
+              );
+              // Καλούμε το Service που φτιάξαμε!
+              await PdfService.generateAndShareReport(currentOilPrice);
+            },
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
