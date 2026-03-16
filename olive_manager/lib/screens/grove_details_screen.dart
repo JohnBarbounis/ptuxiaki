@@ -206,9 +206,45 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
+                            // ΝΕΟ: Παράθυρο Επιβεβαίωσης!
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text("Διαγραφή Εργασίας"),
+                                    content: const Text(
+                                      "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία;",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: const Text("ΑΚΥΡΩΣΗ"),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        child: const Text(
+                                          "ΔΙΑΓΡΑΦΗ",
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
                             onDismissed: (direction) async {
                               await DatabaseHelper.instance.deleteTask(task.id);
                               _loadData();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Η εργασία διαγράφηκε.'),
+                                  ),
+                                );
+                              }
                             },
                             child: Card(
                               margin: const EdgeInsets.symmetric(
@@ -220,13 +256,32 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                   Icons.agriculture,
                                   color: Colors.green,
                                 ),
-                                title: Text(task.title),
-                                subtitle: Text(task.type),
+                                title: Text(
+                                  task.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(task.type),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${task.date.day.toString().padLeft(2, '0')}/${task.date.month.toString().padLeft(2, '0')}/${task.date.year} - ${task.date.hour.toString().padLeft(2, '0')}:${task.date.minute.toString().padLeft(2, '0')}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 trailing: Text(
-                                  '${task.cost} €',
+                                  '${task.cost.toStringAsFixed(2)} €',
                                   style: const TextStyle(
                                     color: Colors.redAccent,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),
@@ -282,11 +337,47 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
+                            // ΝΕΟ: Παράθυρο Επιβεβαίωσης!
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text("Διαγραφή Συγκομιδής"),
+                                    content: const Text(
+                                      "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη συγκομιδή;",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: const Text("ΑΚΥΡΩΣΗ"),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        child: const Text(
+                                          "ΔΙΑΓΡΑΦΗ",
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
                             onDismissed: (direction) async {
                               await DatabaseHelper.instance.deleteHarvest(
                                 harvest.id,
                               );
                               _loadData();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Η συγκομιδή διαγράφηκε.'),
+                                  ),
+                                );
+                              }
                             },
                             child: Card(
                               margin: const EdgeInsets.symmetric(
@@ -307,9 +398,25 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 subtitle: Text(
                                   'Από ${harvest.olivesWeight} κιλά ελιές • Οξύτητα: ${harvest.acidity}',
                                 ),
-                                trailing: Text(
-                                  '${harvest.date.day}/${harvest.date.month}/${harvest.date.year}',
-                                  style: const TextStyle(color: Colors.grey),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '${harvest.date.day.toString().padLeft(2, '0')}/${harvest.date.month.toString().padLeft(2, '0')}/${harvest.date.year}',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${harvest.date.hour.toString().padLeft(2, '0')}:${harvest.date.minute.toString().padLeft(2, '0')}',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),

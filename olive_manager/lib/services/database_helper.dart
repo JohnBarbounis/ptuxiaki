@@ -159,27 +159,90 @@ class DatabaseHelper {
 
   // --- Λειτουργίες Στατιστικών (Aggregations) ---
 
-  // Επιστρέφει το συνολικό κόστος όλων των εργασιών από όλα τα χωράφια
-  Future<double> getTotalExpenses() async {
-    final db = await instance.database;
-    final result = await db.rawQuery('SELECT SUM(cost) as total FROM tasks');
+  // --- Λειτουργίες Στατιστικών με Φίλτρα ---
 
-    if (result.first['total'] != null) {
-      return (result.first['total'] as num).toDouble();
+  // --- Λειτουργίες Στατιστικών με Φίλτρα ---
+
+  Future<double> getTotalExpenses({
+    String filter = 'all',
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final db = await instance.database;
+    String whereClause = '';
+    final now = DateTime.now();
+
+    if (filter == 'year') {
+      whereClause = "WHERE date LIKE '${now.year}-%'";
+    } else if (filter == 'month') {
+      final monthStr = now.month.toString().padLeft(2, '0');
+      whereClause = "WHERE date LIKE '${now.year}-$monthStr-%'";
+    } else if (filter == 'custom' && start != null && end != null) {
+      // Φροντίζουμε η τελική ημερομηνία να πιάνει όλη τη μέρα (μέχρι τις 23:59:59)
+      final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
+      whereClause =
+          "WHERE date >= '${start.toIso8601String()}' AND date <= '${endOfDay.toIso8601String()}'";
     }
-    return 0.0; // Αν δεν υπάρχουν εργασίες, επιστρέφει 0
-  }
 
-  // Επιστρέφει τα συνολικά λίτρα λαδιού από όλα τα χωράφια
-  Future<double> getTotalOilProduction() async {
-    final db = await instance.database;
     final result = await db.rawQuery(
-      'SELECT SUM(oilVolume) as total FROM harvests',
+      'SELECT SUM(cost) as total FROM tasks $whereClause',
     );
 
     if (result.first['total'] != null) {
       return (result.first['total'] as num).toDouble();
     }
     return 0.0;
+  }
+
+  Future<double> getTotalOilProduction({
+    String filter = 'all',
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final db = await instance.database;
+    String whereClause = '';
+    final now = DateTime.now();
+
+    if (filter == 'year') {
+      whereClause = "WHERE date LIKE '${now.year}-%'";
+    } else if (filter == 'month') {
+      final monthStr = now.month.toString().padLeft(2, '0');
+      whereClause = "WHERE date LIKE '${now.year}-$monthStr-%'";
+    } else if (filter == 'custom' && start != null && end != null) {
+      final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
+      whereClause =
+          "WHERE date >= '${start.toIso8601String()}' AND date <= '${endOfDay.toIso8601String()}'";
+    }
+
+    final result = await db.rawQuery(
+      'SELECT SUM(oilVolume) as total FROM harvests $whereClause',
+    );
+
+    if (result.first['total'] != null) {
+      return (result.first['total'] as num).toDouble();
+    }
+    return 0.0;
+  }
+
+  // --- Έξυπνες Λειτουργίες (Smart Farming) ---
+
+  // Φέρνει όλες τις μελλοντικές εργασίες μαζί με το όνομα του χωραφιού
+  Future<List<Map<String, dynamic>>> getUpcomingTasks() async {
+    final db = await instance.database;
+    final now = DateTime.now().toIso8601String(); // Η τωρινή στιγμή
+
+    // Κάνουμε JOIN τον πίνακα tasks με τον πίνακα groves
+    final result = await db.rawQuery(
+      '''
+      SELECT tasks.*, groves.name as groveName 
+      FROM tasks 
+      INNER JOIN groves ON tasks.groveId = groves.id 
+      WHERE tasks.date > ? 
+      ORDER BY tasks.date ASC
+    ''',
+      [now],
+    ); // Ταξινομημένα από το πιο κοντινό στο πιο μακρινό
+
+    return result;
   }
 }
