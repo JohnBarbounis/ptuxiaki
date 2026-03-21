@@ -8,7 +8,8 @@ import '../services/database_helper.dart';
 import 'add_grove_screen.dart';
 import 'grove_details_screen.dart';
 import 'upcoming_tasks_screen.dart';
-import '../services/pdf_service.dart'; // ΝΕΟ IMPORT
+import '../services/pdf_service.dart';
+import 'calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -334,6 +335,16 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green[700],
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Ημερολόγιο Εργασιών',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CalendarScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
             tooltip: 'Εξαγωγή σε PDF',

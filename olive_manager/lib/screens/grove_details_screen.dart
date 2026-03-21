@@ -6,7 +6,8 @@ import '../models/tasks.dart';
 import '../models/harvest.dart';
 import '../services/database_helper.dart';
 import 'add_task_screen.dart';
-import 'add_harvest_screen.dart'; // ΝΕΟ IMPORT
+import 'add_harvest_screen.dart';
+import 'statistics_screen.dart';
 
 // Προσθέτουμε το SingleTickerProviderStateMixin για να δουλέψουν τα animations των Tabs
 class GroveDetailsScreen extends StatefulWidget {
@@ -119,24 +120,28 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.grove.name,
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: Text(widget.grove.name),
         backgroundColor: Colors.green[700],
-        iconTheme: const IconThemeData(color: Colors.white),
-        // ΕΔΩ ΜΠΑΙΝΟΥΝ ΤΑ TABS ΣΤΟ ΚΑΤΩ ΜΕΡΟΣ ΤΟΥ APPBAR
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.green[200],
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(icon: Icon(Icons.build), text: 'ΕΡΓΑΣΙΕΣ'),
-            Tab(icon: Icon(Icons.opacity), text: 'ΣΥΓΚΟΜΙΔΗ'),
-          ],
-        ),
+        foregroundColor: Colors.white,
+        actions: [
+          // ΝΕΟ ΚΟΥΜΠΙ ΓΙΑ ΣΤΑΤΙΣΤΙΚΑ
+          IconButton(
+            icon: const Icon(Icons.pie_chart),
+            tooltip: 'Στατιστικά Εξόδων',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StatisticsScreen(
+                    groveId: widget.grove.id,
+                    groveName: widget.grove.name,
+                  ),
+                ),
+              );
+            },
+          ),
+          // Εδώ λογικά έχεις ήδη κάποιο IconButton για Delete ή Edit...
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
