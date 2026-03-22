@@ -1,9 +1,7 @@
-// Αρχείο: lib/models/olive_grove.dart
-
 class OliveGrove {
-  final String id;
-  final String name;
-  final double area; // Στρέμματα (αντί για treeCount)
+  final String id; // Μοναδικό Αναγνωριστικό Ελαιώνα
+  final String name; // Όνομα Ελαιώνα
+  final double area; // Στρέμματα
   final double? lat; // Γεωγραφικό Πλάτος
   final double? lng; // Γεωγραφικό Μήκος
 

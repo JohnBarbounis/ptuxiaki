@@ -1,4 +1,3 @@
-// Αρχείο: lib/services/database_helper.dart
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/olive_grove.dart';
@@ -6,7 +5,7 @@ import '../models/tasks.dart';
 import '../models/harvest.dart';
 
 class DatabaseHelper {
-  // Δημιουργούμε ένα Singleton (μόνο ένα instance της βάσης σε όλο το app)
+  // Δημιουργούμε ένα Singleton
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
@@ -28,7 +27,7 @@ class DatabaseHelper {
 
   // Δημιουργία των πινάκων με SQL
   Future _createDB(Database db, int version) async {
-    // ΝΕΟ: Πίνακας Εργασιών
+    // Πίνακας Εργασιών
     await db.execute('''
     CREATE TABLE tasks (
       id TEXT PRIMARY KEY,
@@ -52,7 +51,7 @@ class DatabaseHelper {
     )
     ''');
 
-    // 3. Πίνακας Συγκομιδής (ΝΕΟ)
+    // 3. Πίνακας Συγκομιδής
     await db.execute('''
     CREATE TABLE harvests (
       id TEXT PRIMARY KEY,
@@ -66,9 +65,9 @@ class DatabaseHelper {
     ''');
   }
 
-  // --- Λειτουργίες (CRUD) ---
+  //  Λειτουργίες (CRUD)
 
-  // 1. Εισαγωγή Χωραφιού
+  // Εισαγωγή Χωραφιού
   Future<void> insertGrove(OliveGrove grove) async {
     final db = await instance.database;
     await db.insert(
@@ -79,7 +78,7 @@ class DatabaseHelper {
     );
   }
 
-  // 2. Ανάγνωση όλων των Χωραφιών
+  // Ανάγνωση όλων των Χωραφιών
   Future<List<OliveGrove>> getAllGroves() async {
     final db = await instance.database;
     final result = await db.query(
@@ -90,7 +89,7 @@ class DatabaseHelper {
     return result.map((json) => OliveGrove.fromMap(json)).toList();
   }
 
-  // --- Λειτουργίες για Εργασίες (Tasks) ---
+  // Λειτουργίες για Εργασίες (Tasks)
 
   // Εισαγωγή νέας εργασίας
   Future<void> insertTask(Task task) async {
@@ -102,7 +101,7 @@ class DatabaseHelper {
     );
   }
 
-  // Ανάγνωση εργασιών ΜΟΝΟ για ένα συγκεκριμένο χωράφι
+  // Ανάγνωση εργασιών μονο για ένα συγκεκριμένο χωράφι
   Future<List<Task>> getTasksForGrove(String groveId) async {
     final db = await instance.database;
 
@@ -144,7 +143,7 @@ class DatabaseHelper {
     return result.map((json) => Harvest.fromMap(json)).toList();
   }
 
-  // --- ΕΝΗΜΕΡΩΣΗ: Cascading Delete ---
+  // Cascading Delete
   Future<void> deleteGrove(String id) async {
     final db = await instance.database;
     await db.delete('tasks', where: 'groveId = ?', whereArgs: [id]);
@@ -156,12 +155,6 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.delete('harvests', where: 'id = ?', whereArgs: [id]);
   }
-
-  // --- Λειτουργίες Στατιστικών (Aggregations) ---
-
-  // --- Λειτουργίες Στατιστικών με Φίλτρα ---
-
-  // --- Λειτουργίες Στατιστικών με Φίλτρα ---
 
   Future<double> getTotalExpenses({
     String filter = 'all',
@@ -223,8 +216,6 @@ class DatabaseHelper {
     }
     return 0.0;
   }
-
-  // --- Έξυπνες Λειτουργίες (Smart Farming) ---
 
   // Φέρνει όλες τις μελλοντικές εργασίες μαζί με το όνομα του χωραφιού
   Future<List<Map<String, dynamic>>> getUpcomingTasks() async {

@@ -1,8 +1,7 @@
-// Αρχείο: lib/screens/add_grove_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart'; // ΝΕΟ IMPORT
+import 'package:geolocator/geolocator.dart';
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 
@@ -88,10 +87,10 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
 
       // 3. Παίρνουμε την ακριβή τοποθεσία
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high, // Ζητάμε υψηλή ακρίβεια
+        desiredAccuracy: LocationAccuracy.high, // Υψηλή ακρίβεια
       );
 
-      // 4. Μετακινούμε τον χάρτη εκεί και βάζουμε αυτόματα την πινέζα!
+      // 4. Μετακινούμε τον χάρτη εκεί και βάζουμε αυτόματα την πινέζα
       if (mounted) {
         setState(() {
           _selectedLocation = LatLng(position.latitude, position.longitude);
@@ -101,7 +100,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         _mapController.move(_selectedLocation!, 15.0);
       }
     } catch (e) {
-      // Αν γίνει οποιοδήποτε άλλο σφάλμα (π.χ. χάθηκε το σήμα)
+      // Αν γίνει οποιοδήποτε άλλο σφάλμα
       _showFallbackMessage(
         'Αποτυχία εύρεσης τοποθεσίας. Παρακαλώ βάλτε την πινέζα χειροκίνητα.',
       );
@@ -224,7 +223,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     ],
                   ),
 
-                  // Δείχνει ένα κυκλάκι φόρτωσης όσο ψάχνει το GPS
+                  // Δείχνει φόρτωση όσο ψάχνει το GPS
                   if (_isLocating)
                     Container(
                       color: Colors.black45,

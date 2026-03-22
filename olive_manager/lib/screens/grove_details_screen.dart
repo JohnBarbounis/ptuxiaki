@@ -1,4 +1,3 @@
-// Αρχείο: lib/screens/grove_details_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/olive_grove.dart';
@@ -31,7 +30,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   @override
   void initState() {
     super.initState();
-    // Φτιάχνουμε τον ελεγκτή για 2 καρτέλες
     _tabController = TabController(length: 2, vsync: this);
 
     // Όταν αλλάζει καρτέλα, ανανεώνουμε την οθόνη (για να αλλάζει το κουμπί +)
@@ -48,7 +46,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     super.dispose();
   }
 
-  // Φορτώνει και τις εργασίες και τις συγκομιδές
+  // Φορτώνει τις εργασίες και τις συγκομιδές
   Future<void> _loadData() async {
     setState(() => isLoading = true);
 
@@ -140,7 +138,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
               );
             },
           ),
-          // Εδώ λογικά έχεις ήδη κάποιο IconButton για Delete ή Edit...
         ],
       ),
       body: isLoading
@@ -211,7 +208,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
-                            // ΝΕΟ: Παράθυρο Επιβεβαίωσης!
+                            // Παράθυρο Επιβεβαίωσης!
                             confirmDismiss: (direction) async {
                               return await showDialog(
                                 context: context,
@@ -298,7 +295,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                   ],
                 ),
 
-                // ---- ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ ----
+                // ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ
                 Column(
                   children: [
                     Container(
@@ -342,7 +339,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
-                            // ΝΕΟ: Παράθυρο Επιβεβαίωσης!
+                            // Παράθυρο Επιβεβαίωσης!
                             confirmDismiss: (direction) async {
                               return await showDialog(
                                 context: context,
@@ -433,7 +430,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                 ),
               ],
             ),
-      // Το κουμπί + αλλάζει όνομα (και λειτουργία) ανάλογα την καρτέλα!
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _onFabPressed,
         backgroundColor: Colors.green[700],

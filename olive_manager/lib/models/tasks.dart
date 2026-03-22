@@ -1,5 +1,3 @@
-// Αρχείο: lib/models/task.dart
-
 class Task {
   final String id;
   final String groveId; // Σε ποιο χωράφι ανήκει αυτή η εργασία

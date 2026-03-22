@@ -31,7 +31,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     'Άλλο',
   ];
 
-  // --- ΝΕΕΣ ΜΕΤΑΒΛΗΤΕΣ ΓΙΑ ΤΟΝ ΕΞΥΠΝΟ ΠΡΟΓΡΑΜΜΑΤΙΣΜΟ ---
   bool _scheduleNext = false;
 
   // Τα έτοιμα "Πρότυπα Αγρότη"
@@ -55,7 +54,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     if (_formKey.currentState!.validate()) {
       final now = DateTime.now();
 
-      // 1. Αποθηκεύουμε την ΤΩΡΙΝΗ εργασία που μόλις έκανε
+      // Αποθηκεύουμε την τωρινη εργασία που μόλις έκανε
       final currentTask = Task(
         id: now.millisecondsSinceEpoch.toString(),
         groveId: widget.groveId,
@@ -67,7 +66,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       );
       await DatabaseHelper.instance.insertTask(currentTask);
 
-      // 2. Αν ο διακόπτης είναι ανοιχτός, αποθηκεύουμε ΚΑΙ τη ΜΕΛΛΟΝΤΙΚΗ υπενθύμιση
+      // Αν εχουμε επιλέξει να προγραμματίσουμε την επόμενη εργασία αποθηκεύουμε τη μελλοντικη υπενθύμιση
       if (_scheduleNext) {
         // Βρίσκουμε τις μέρες (αν είναι 0, παίρνουμε αυτό που έγραψε στο πεδίο)
         int daysToAdd = _selectedPreset['days'];
@@ -81,11 +80,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           id: nextDate.millisecondsSinceEpoch
               .toString(), // Νέο μοναδικό ID (ημερομηνία στο μέλλον)
           groveId: widget.groveId,
-          title:
-              '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}', // Βάζουμε το σύμβολο ⏳ για να ξεχωρίζει
+          title: '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}',
           type: _selectedType,
           date: nextDate,
-          cost: 0.0, // Το κόστος είναι 0 γιατί δεν έχει γίνει ακόμα
+          cost: 0.0,
           notes:
               'Αυτόματη υπενθύμιση. Μην ξεχάσετε να ενημερώσετε το κόστος όταν την ολοκληρώσετε.',
         );
@@ -159,8 +157,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               ),
 
               const Divider(height: 40, thickness: 2),
-
-              // ---- ΕΞΥΠΝΟΣ ΠΡΟΓΡΑΜΜΑΤΙΣΜΟΣ (SMART SCHEDULING) ----
               Container(
                 decoration: BoxDecoration(
                   color: Colors.blue[50],
@@ -188,8 +184,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         setState(() => _scheduleNext = value);
                       },
                     ),
-
-                    // Αν ο διακόπτης είναι ανοιχτός, δείχνουμε τα πρότυπα!
                     if (_scheduleNext) ...[
                       const SizedBox(height: 8),
                       DropdownButtonFormField<Map<String, dynamic>>(

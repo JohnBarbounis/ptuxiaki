@@ -1,12 +1,10 @@
-// Αρχείο: lib/models/harvest.dart
-
 class Harvest {
   final String id;
-  final String groveId; // Ξένο κλειδί: Σε ποιο χωράφι έγινε η συγκομιδή
-  final DateTime date;
-  final double olivesWeight; // Κιλά ελιάς (π.χ. 1500)
-  final double oilVolume; // Κιλά/Λίτρα λαδιού (π.χ. 300)
-  final double acidity; // Οξύτητα (π.χ. 0.3)
+  final String groveId; // Αναφορά στο ελαιώνα που ανήκει η συγκομιδή
+  final DateTime date; // Ημερομηνία συγκομιδής
+  final double olivesWeight; // Κιλά ελιάς
+  final double oilVolume; // Κιλά/Λίτρα λαδιού
+  final double acidity; // Οξύτητα
 
   Harvest({
     required this.id,

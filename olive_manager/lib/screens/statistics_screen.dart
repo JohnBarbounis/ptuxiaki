@@ -1,7 +1,6 @@
 // Αρχείο: lib/screens/statistics_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/tasks.dart';
 import '../services/database_helper.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -23,7 +22,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   double _totalCost = 0.0;
   bool _isLoading = true;
 
-  // Μια παλέτα χρωμάτων για τις διάφορες εργασίες
+  // Χρώματα για τις διάφορες εργασίες
   final Map<String, Color> _categoryColors = {
     'Κλάδεμα': Colors.brown,
     'Λίπανση': Colors.orange,
@@ -94,14 +93,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   child: PieChart(
                     PieChartData(
                       sectionsSpace: 2,
-                      centerSpaceRadius:
-                          50, // Κάνει το γράφημα να μοιάζει με "Ντόνατ"
+                      centerSpaceRadius: 50,
                       sections: _getSections(),
                     ),
                   ),
                 ),
 
-                // ΤΟ ΥΠΟΜΝΗΜΑ (Λεζάντες)
                 Expanded(
                   flex: 3,
                   child: Padding(
@@ -139,7 +136,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // Συνάρτηση που φτιάχνει τα "κομμάτια" της πίτας
   List<PieChartSectionData> _getSections() {
     return _categoryCosts.entries.map((entry) {
       final percentage = (entry.value / _totalCost) * 100;

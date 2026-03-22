@@ -1,4 +1,3 @@
-// Αρχείο: lib/services/pdf_service.dart
 import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -8,7 +7,6 @@ import 'package:share_plus/share_plus.dart';
 import 'database_helper.dart';
 
 class PdfService {
-  // ΝΕΟ: Η συνάρτηση παίρνει πλέον την τιμή του λαδιού ως παράμετρο!
   static Future<void> generateAndShareReport(double oilPrice) async {
     final pdf = pw.Document();
 
@@ -19,7 +17,7 @@ class PdfService {
     final totalOil = await DatabaseHelper.instance.getTotalOilProduction();
     final groves = await DatabaseHelper.instance.getAllGroves();
 
-    // ΝΕΟ: Υπολογισμοί μέσα στο PDF
+    // Υπολογισμοί μέσα στο PDF
     final grossIncome = totalOil * oilPrice;
     final netProfit = grossIncome - totalExpenses;
 
@@ -49,7 +47,6 @@ class PdfService {
               ),
               pw.SizedBox(height: 30),
 
-              // ---- ΟΙΚΟΝΟΜΙΚΗ ΣΥΝΟΨΗ ΜΕ ΚΕΡΔΟΣ ----
               pw.Text(
                 'Οικονομική Σύνοψη',
                 style: pw.TextStyle(
@@ -98,7 +95,7 @@ class PdfService {
               ),
               pw.SizedBox(height: 30),
 
-              // ---- ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ ----
+              // ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
               pw.Text(
                 'Τα Χωράφια μου',
                 style: pw.TextStyle(

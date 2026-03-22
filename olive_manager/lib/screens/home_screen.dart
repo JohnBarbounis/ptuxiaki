@@ -1,4 +1,3 @@
-// Αρχείο: lib/screens/home_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -27,10 +26,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedFilter = 'all';
   DateTimeRange? _customDateRange;
 
-  // --- ΝΕΟ: Μεταβλητή για την τιμή του λαδιού ---
-  double currentOilPrice = 7.50; // Μια μέση αρχική τιμή
+  double currentOilPrice =
+      7.50; // Μια μέση αρχική τιμή λαδιού, μπορεί να αλλάξει από τον χρήστη
 
-  // --- Μεταβλητές για τον Καιρό ---
+  // Μεταβλητές για τον Καιρό
   bool isWeatherLoading = true;
   double? currentTemp;
   double? windSpeed;
@@ -149,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = false);
   }
 
-  // --- ΝΕΟ: Συνάρτηση για αλλαγή της Τιμής Λαδιού ---
+  // Συνάρτηση για αλλαγή της Τιμής Λαδιού ---
   Future<void> _editOilPrice() async {
     final TextEditingController priceController = TextEditingController(
       text: currentOilPrice.toStringAsFixed(2),
@@ -604,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const Divider(thickness: 1, color: Colors.black12),
 
-                      // ΝΕΟ - Γραμμή 2: Τιμή Λαδιού και Καθαρό Κέρδος
+                      // Γραμμή 2: Τιμή Λαδιού και Καθαρό Κέρδος
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
@@ -673,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: netProfit >= 0
                                         ? Colors.green[700]
                                         : Colors
-                                              .red, // Πράσινο αν έχει κέρδος, κόκκινο αν μπαίνει μέσα!
+                                              .red, // Πράσινο αν έχει κέρδος, κόκκινο αν εχει ζημία
                                   ),
                                 ),
                               ],
@@ -685,7 +684,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // ΚΟΥΜΠΙ ΜΕΛΛΟΝΤΙΚΩΝ ΕΡΓΑΣΙΩΝ
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ElevatedButton.icon(

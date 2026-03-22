@@ -1,4 +1,3 @@
-// Αρχείο: lib/screens/calendar_screen.dart
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -28,7 +27,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadAllTasks();
   }
 
-  // Συνάρτηση που φέρνει ΟΛΕΣ τις εργασίες από ΟΛΑ τα χωράφια
+  // Συνάρτηση που φέρνει ολες τις εργασίες από όλα τα χωράφια
   Future<void> _loadAllTasks() async {
     final groves = await DatabaseHelper.instance.getAllGroves();
     Map<DateTime, List<Task>> tempTasks = {};
@@ -57,7 +56,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // Επιστρέφει τις εργασίες για μια συγκεκριμένη μέρα (για να βάλει τις κουκκίδες)
+  // Επιστρέφει τις εργασίες για μια συγκεκριμένη μέρα
   List<Task> _getTasksForDay(DateTime day) {
     final normalizedDate = DateTime(day.year, day.month, day.day);
     return _groupedTasks[normalizedDate] ?? [];
@@ -96,7 +95,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     eventLoader: _getTasksForDay, // Φορτώνει τις κουκκίδες
                     startingDayOfWeek:
                         StartingDayOfWeek.monday, // Η εβδομάδα ξεκινάει Δευτέρα
-                    // Αισθητικές παρεμβάσεις
                     calendarStyle: CalendarStyle(
                       todayDecoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.5),
@@ -112,8 +110,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                     headerStyle: const HeaderStyle(
-                      formatButtonVisible:
-                          false, // Κρύβουμε το κουμπί '2 weeks' κλπ.
+                      formatButtonVisible: false, // Κρύβουμε το κουμπί
                       titleCentered: true,
                     ),
 
