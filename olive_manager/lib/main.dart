@@ -12,8 +12,7 @@ class OliveManagerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Διαχείριση Ελαιώνα',
-      debugShowCheckedModeBanner:
-          false, // Αφαιρεί το ενοχλητικό "DEBUG" banner πάνω δεξιά
+      debugShowCheckedModeBanner: false, // Αφαιρεί το "DEBUG" πάνω δεξιά
       theme: ThemeData(
         // Επιλέγουμε ένα πράσινο θέμα που ταιριάζει με την ελαιοπαραγωγή
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
