@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 
@@ -17,10 +18,12 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   final _nameController = TextEditingController();
   final _areaController = TextEditingController();
 
+  // Controller για το πεδίο της διεύθυνσης
+  final _addressController = TextEditingController();
+
   final MapController _mapController = MapController();
   LatLng? _selectedLocation;
 
-  // Μεταβλητή για να δείχνουμε ότι ψάχνουμε το GPS
   bool _isLocating = true;
 
   @override
@@ -29,15 +32,13 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     _getUserLocation();
   }
 
-  // Βοηθητική συνάρτηση για το Fallback
   void _showFallbackMessage(String message) {
     if (mounted) {
-      setState(() => _isLocating = false); // Κρύβουμε το loading
-
+      setState(() => _isLocating = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.orange[800], // Πορτοκαλί χρώμα προειδοποίησης
+          backgroundColor: Colors.orange[800],
           duration: const Duration(seconds: 4),
           action: SnackBarAction(
             label: 'ΟΚ',
@@ -49,13 +50,68 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     }
   }
 
-  // Συνάρτηση που βρίσκει το GPS του χρήστη με ασφάλεια (Fallback)
+  // Συντεταγμένες -> Διεύθυνση
+  Future<void> _getAddressFromLatLng(LatLng position) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        setState(() {
+          String address =
+              '${place.street ?? ''}, ${place.locality ?? place.subAdministrativeArea ?? ''}';
+          address = address.replaceAll(RegExp(r'^, |, $'), '').trim();
+
+          if (address.isEmpty || address == ',') {
+            _addressController.text = 'Γνωστή τοποθεσία, χωρίς ακριβή οδό';
+          } else {
+            _addressController.text = address; // Βάζουμε τη διεύθυνση στο πεδίο
+          }
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _addressController.text = 'Άγνωστη διεύθυνση';
+      });
+    }
+  }
+
+  //Διεύθυνση -> Συντεταγμένες
+  Future<void> _searchAddressFromText() async {
+    final query = _addressController.text.trim();
+    if (query.isEmpty) return;
+
+    // Κρύβουμε το πληκτρολόγιο
+    FocusScope.of(context).unfocus();
+    setState(() => _isLocating = true);
+
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      if (locations.isNotEmpty) {
+        LatLng newPos = LatLng(
+          locations.first.latitude,
+          locations.first.longitude,
+        );
+        setState(() {
+          _selectedLocation = newPos;
+          _isLocating = false;
+        });
+        // Πάμε τον χάρτη στη νέα τοποθεσία
+        _mapController.move(newPos, 15.0);
+      }
+    } catch (e) {
+      _showFallbackMessage('Δεν βρέθηκε η διεύθυνση. Ελέγξτε την ορθογραφία.');
+    }
+  }
+
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
     try {
-      // 1. Ελέγχουμε αν το GPS της συσκευής είναι ανοιχτό
       serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _showFallbackMessage(
@@ -64,12 +120,10 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         return;
       }
 
-      // 2. Ελέγχουμε τα δικαιώματα
       permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          // Ο χρήστης πάτησε "Άρνηση" (Fallback)
           _showFallbackMessage(
             'Δεν δόθηκε άδεια τοποθεσίας. Επιλέξτε το χωράφι χειροκίνητα.',
           );
@@ -78,29 +132,27 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        // Ο χρήστης έχει μπλοκάρει μόνιμα την τοποθεσία (Fallback)
         _showFallbackMessage(
           'Τα δικαιώματα τοποθεσίας είναι απενεργοποιημένα. Επιλέξτε χειροκίνητα.',
         );
         return;
       }
 
-      // 3. Παίρνουμε την ακριβή τοποθεσία
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high, // Υψηλή ακρίβεια
+        desiredAccuracy: LocationAccuracy.high,
       );
 
-      // 4. Μετακινούμε τον χάρτη εκεί και βάζουμε αυτόματα την πινέζα
       if (mounted) {
+        LatLng newLocation = LatLng(position.latitude, position.longitude);
         setState(() {
-          _selectedLocation = LatLng(position.latitude, position.longitude);
+          _selectedLocation = newLocation;
           _isLocating = false;
         });
 
         _mapController.move(_selectedLocation!, 15.0);
+        _getAddressFromLatLng(newLocation);
       }
     } catch (e) {
-      // Αν γίνει οποιοδήποτε άλλο σφάλμα
       _showFallbackMessage(
         'Αποτυχία εύρεσης τοποθεσίας. Παρακαλώ βάλτε την πινέζα χειροκίνητα.',
       );
@@ -118,6 +170,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         return;
       }
 
+      // Σώζουμε πάντα τις συντεταγμένες (lat/lng) για να δουλεύει nη πλοήγηση
       final newGrove = OliveGrove(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
@@ -159,7 +212,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     validator: (value) =>
                         value!.isEmpty ? 'Εισάγετε όνομα' : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _areaController,
                     decoration: const InputDecoration(
@@ -172,10 +225,27 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     validator: (value) =>
                         value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Πατήστε στον χάρτη για αλλαγή πινέζας:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+
+                  //Πεδίο Αναζήτησης / Εμφάνισης Διεύθυνσης
+                  TextFormField(
+                    controller: _addressController,
+                    decoration: InputDecoration(
+                      labelText: 'Διεύθυνση / Αναζήτηση',
+                      hintText: 'π.χ. Ηράκλειο Κρήτης',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search, color: Colors.blue),
+                        onPressed: _searchAddressFromText, // Κουμπί αναζήτησης
+                        tooltip: 'Αναζήτηση στον χάρτη',
+                      ),
+                    ),
+                    // Αν ο χρήστης πατήσει "Enter" στο πληκτρολόγιο, κάνει αναζήτηση
+                    onFieldSubmitted: (_) => _searchAddressFromText(),
                   ),
                 ],
               ),
@@ -191,12 +261,15 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                       initialCenter: const LatLng(
                         38.2462,
                         21.7351,
-                      ), // Προεπιλογή αν αργήσει το GPS
+                      ), // Προεπιλογή
                       initialZoom: 6.0,
                       onTap: (tapPosition, point) {
                         setState(() {
                           _selectedLocation = point;
                         });
+                        _getAddressFromLatLng(
+                          point,
+                        ); // Ανανεώνει το πεδίο διεύθυνσης
                       },
                     ),
                     children: [
@@ -223,7 +296,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     ],
                   ),
 
-                  // Δείχνει φόρτωση όσο ψάχνει το GPS
                   if (_isLocating)
                     Container(
                       color: Colors.black45,
