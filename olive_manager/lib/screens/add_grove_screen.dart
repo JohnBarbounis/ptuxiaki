@@ -279,7 +279,8 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     options: MapOptions(
                       initialCenter:
                           _selectedLocation ?? const LatLng(38.2462, 21.7351),
-                      initialZoom: 6.0,
+                      initialZoom:
+                          15.0, // Αυξήσαμε λίγο το ζουμ για καλύτερη ορατότητα
                       onTap: (tapPosition, point) {
                         setState(() => _selectedLocation = point);
                         _getAddressFromLatLng(point);
@@ -308,6 +309,20 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                         ),
                     ],
                   ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      mini: true, // Το κάνουμε μικρό για να μην πιάνει χώρο
+                      backgroundColor: Colors.white,
+                      onPressed: () {
+                        setState(() => _isLocating = true);
+                        _getUserLocation(); // Καλεί την υπάρχουσα συνάρτηση που βρίσκει το GPS
+                      },
+                      child: const Icon(Icons.my_location, color: Colors.blue),
+                    ),
+                  ),
+
                   if (_isLocating)
                     Container(
                       color: Colors.black45,
