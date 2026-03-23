@@ -7,6 +7,7 @@ import '../services/database_helper.dart';
 import 'add_task_screen.dart';
 import 'add_harvest_screen.dart';
 import 'statistics_screen.dart';
+import 'add_grove_screen.dart'; // ΝΕΟ: Εισάγουμε την οθόνη προσθήκης/επεξεργασίας χωραφιού
 
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;
@@ -126,6 +127,26 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         backgroundColor: Colors.green[700],
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // ΝΕΟ: Κουμπί Επεξεργασίας Χωραφιού (προσθήκη τοποθεσίας κλπ)
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Επεξεργασία Χωραφιού',
+            onPressed: () async {
+              // Στέλνουμε το υπάρχον χωράφι στην οθόνη προσθήκης
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AddGroveScreen(existingGrove: widget.grove),
+                ),
+              );
+              // Αν επιστρέψει true (δηλαδή σώθηκε), ανανεώνουμε τα δεδομένα
+              if (result == true) {
+                // Προαιρετικά: Μπορείς να ξαναφορτώσεις τα δεδομένα ή να γυρίσεις στην Αρχική
+                Navigator.pop(context, true);
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.pie_chart),
             tooltip: 'Στατιστικά Εξόδων',

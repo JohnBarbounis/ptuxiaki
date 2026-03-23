@@ -78,6 +78,17 @@ class DatabaseHelper {
     );
   }
 
+  // Ενημερώνει ένα υπάρχον χωράφι
+  Future<int> updateGrove(OliveGrove grove) async {
+    Database db = await instance.database;
+    return await db.update(
+      'groves',
+      grove.toMap(),
+      where: 'id = ?',
+      whereArgs: [grove.id],
+    );
+  }
+
   // Ανάγνωση όλων των Χωραφιών
   Future<List<OliveGrove>> getAllGroves() async {
     final db = await instance.database;

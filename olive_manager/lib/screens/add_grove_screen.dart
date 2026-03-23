@@ -7,7 +7,9 @@ import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 
 class AddGroveScreen extends StatefulWidget {
-  const AddGroveScreen({super.key});
+  final OliveGrove? existingGrove;
+
+  const AddGroveScreen({super.key, this.existingGrove});
 
   @override
   State<AddGroveScreen> createState() => _AddGroveScreenState();
@@ -17,19 +19,41 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _areaController = TextEditingController();
-
-  // Controller για το πεδίο της διεύθυνσης
   final _addressController = TextEditingController();
 
   final MapController _mapController = MapController();
   LatLng? _selectedLocation;
-
   bool _isLocating = true;
 
   @override
   void initState() {
     super.initState();
-    _getUserLocation();
+
+    // Ελέγχουμε αν κάνουμε Επεξεργασία υπάρχοντος χωραφιού
+    if (widget.existingGrove != null) {
+      _nameController.text = widget.existingGrove!.name;
+      _areaController.text = widget.existingGrove!.area.toString();
+
+      if (widget.existingGrove!.lat != null &&
+          widget.existingGrove!.lng != null) {
+        _selectedLocation = LatLng(
+          widget.existingGrove!.lat!,
+          widget.existingGrove!.lng!,
+        );
+        _isLocating = false;
+        _getAddressFromLatLng(_selectedLocation!);
+        // Μετακίνηση χάρτη αφού χτιστεί η οθόνη
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(_selectedLocation!, 15.0);
+        });
+      } else {
+        // Αν το χωράφι δεν είχε τοποθεσία, ψάξε το GPS τώρα
+        _getUserLocation();
+      }
+    } else {
+      // Νέο χωράφι, άρα ψάξε GPS
+      _getUserLocation();
+    }
   }
 
   void _showFallbackMessage(String message) {
@@ -40,51 +64,38 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
           content: Text(message),
           backgroundColor: Colors.orange[800],
           duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'ΟΚ',
-            textColor: Colors.white,
-            onPressed: () {},
-          ),
         ),
       );
     }
   }
 
-  // Συντεταγμένες -> Διεύθυνση
   Future<void> _getAddressFromLatLng(LatLng position) async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
         setState(() {
           String address =
               '${place.street ?? ''}, ${place.locality ?? place.subAdministrativeArea ?? ''}';
           address = address.replaceAll(RegExp(r'^, |, $'), '').trim();
-
-          if (address.isEmpty || address == ',') {
-            _addressController.text = 'Γνωστή τοποθεσία, χωρίς ακριβή οδό';
-          } else {
-            _addressController.text = address; // Βάζουμε τη διεύθυνση στο πεδίο
-          }
+          _addressController.text = (address.isEmpty || address == ',')
+              ? 'Γνωστή τοποθεσία, χωρίς ακριβή οδό'
+              : address;
         });
       }
     } catch (e) {
       setState(() {
-        _addressController.text = 'Άγνωστη διεύθυνση';
+        _addressController.text = 'Άγνωστη διεύθυνση (Εκτός Σύνδεσης)';
       });
     }
   }
 
-  //Διεύθυνση -> Συντεταγμένες
   Future<void> _searchAddressFromText() async {
     final query = _addressController.text.trim();
     if (query.isEmpty) return;
-
-    // Κρύβουμε το πληκτρολόγιο
     FocusScope.of(context).unfocus();
     setState(() => _isLocating = true);
 
@@ -99,87 +110,70 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
           _selectedLocation = newPos;
           _isLocating = false;
         });
-        // Πάμε τον χάρτη στη νέα τοποθεσία
         _mapController.move(newPos, 15.0);
       }
     } catch (e) {
-      _showFallbackMessage('Δεν βρέθηκε η διεύθυνση. Ελέγξτε την ορθογραφία.');
+      _showFallbackMessage('Δεν βρέθηκε. Ελέγξτε τη σύνδεσή σας.');
     }
   }
 
   Future<void> _getUserLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
     try {
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
+      if (!await Geolocator.isLocationServiceEnabled()) {
         _showFallbackMessage(
-          'Το GPS είναι κλειστό. Παρακαλώ βάλτε την πινέζα χειροκίνητα.',
+          'Το GPS είναι κλειστό. Αποθηκεύστε χωρίς τοποθεσία.',
         );
         return;
       }
-
-      permission = await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           _showFallbackMessage(
-            'Δεν δόθηκε άδεια τοποθεσίας. Επιλέξτε το χωράφι χειροκίνητα.',
+            'Δεν δόθηκε άδεια. Αποθηκεύστε χωρίς τοποθεσία.',
           );
           return;
         }
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showFallbackMessage(
-          'Τα δικαιώματα τοποθεσίας είναι απενεργοποιημένα. Επιλέξτε χειροκίνητα.',
-        );
-        return;
-      }
+      if (permission == LocationPermission.deniedForever) return;
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
       if (mounted) {
         LatLng newLocation = LatLng(position.latitude, position.longitude);
         setState(() {
           _selectedLocation = newLocation;
           _isLocating = false;
         });
-
         _mapController.move(_selectedLocation!, 15.0);
         _getAddressFromLatLng(newLocation);
       }
     } catch (e) {
       _showFallbackMessage(
-        'Αποτυχία εύρεσης τοποθεσίας. Παρακαλώ βάλτε την πινέζα χειροκίνητα.',
+        'Αδυναμία εύρεσης. Μπορείτε να αποθηκεύσετε χωρίς χάρτη.',
       );
     }
   }
 
   Future<void> _saveGrove() async {
     if (_formKey.currentState!.validate()) {
-      if (_selectedLocation == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Παρακαλώ επιλέξτε τοποθεσία στον χάρτη!'),
-          ),
-        );
-        return;
-      }
-
-      // Σώζουμε πάντα τις συντεταγμένες (lat/lng) για να δουλεύει nη πλοήγηση
-      final newGrove = OliveGrove(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+      // ΔΗΜΙΟΥΡΓΙΑ Ή ΕΝΗΜΕΡΩΣΗ ΧΩΡΑΦΙΟΥ
+      final groveToSave = OliveGrove(
+        id:
+            widget.existingGrove?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         area: double.parse(_areaController.text),
-        lat: _selectedLocation!.latitude,
-        lng: _selectedLocation!.longitude,
+        lat: _selectedLocation?.latitude,
+        lng: _selectedLocation?.longitude,
       );
 
-      await DatabaseHelper.instance.insertGrove(newGrove);
+      if (widget.existingGrove != null) {
+        await DatabaseHelper.instance.updateGrove(groveToSave);
+      } else {
+        await DatabaseHelper.instance.insertGrove(groveToSave);
+      }
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -189,9 +183,14 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.existingGrove != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Νέο Χωράφι', style: TextStyle(color: Colors.white)),
+        title: Text(
+          isEditing ? 'Επεξεργασία Χωραφιού' : 'Νέο Χωράφι',
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.green[700],
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -227,24 +226,44 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  //Πεδίο Αναζήτησης / Εμφάνισης Διεύθυνσης
+                  // Πεδίο Διεύθυνσης με κουμπί εκκαθάρισης
                   TextFormField(
                     controller: _addressController,
                     decoration: InputDecoration(
-                      labelText: 'Διεύθυνση / Αναζήτηση',
-                      hintText: 'π.χ. Ηράκλειο Κρήτης',
+                      labelText: _selectedLocation == null
+                          ? 'Χωρίς Τοποθεσία'
+                          : 'Διεύθυνση / Αναζήτηση',
+                      hintText: 'Αναζήτηση περιοχής...',
                       border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(
-                        Icons.location_on,
-                        color: Colors.red,
+                      prefixIcon: Icon(
+                        _selectedLocation == null
+                            ? Icons.location_off
+                            : Icons.location_on,
+                        color: _selectedLocation == null
+                            ? Colors.grey
+                            : Colors.red,
                       ),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.search, color: Colors.blue),
-                        onPressed: _searchAddressFromText, // Κουμπί αναζήτησης
-                        tooltip: 'Αναζήτηση στον χάρτη',
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_selectedLocation != null)
+                            IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedLocation = null;
+                                  _addressController.clear();
+                                });
+                              },
+                              tooltip: 'Αφαίρεση Τοποθεσίας',
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.search, color: Colors.blue),
+                            onPressed: _searchAddressFromText,
+                          ),
+                        ],
                       ),
                     ),
-                    // Αν ο χρήστης πατήσει "Enter" στο πληκτρολόγιο, κάνει αναζήτηση
                     onFieldSubmitted: (_) => _searchAddressFromText(),
                   ),
                 ],
@@ -258,18 +277,12 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: const LatLng(
-                        38.2462,
-                        21.7351,
-                      ), // Προεπιλογή
+                      initialCenter:
+                          _selectedLocation ?? const LatLng(38.2462, 21.7351),
                       initialZoom: 6.0,
                       onTap: (tapPosition, point) {
-                        setState(() {
-                          _selectedLocation = point;
-                        });
-                        _getAddressFromLatLng(
-                          point,
-                        ); // Ανανεώνει το πεδίο διεύθυνσης
+                        setState(() => _selectedLocation = point);
+                        _getAddressFromLatLng(point);
                       },
                     ),
                     children: [
@@ -295,7 +308,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                         ),
                     ],
                   ),
-
                   if (_isLocating)
                     Container(
                       color: Colors.black45,
@@ -317,9 +329,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     backgroundColor: Colors.green[700],
                   ),
                   onPressed: _saveGrove,
-                  child: const Text(
-                    'Αποθήκευση Χωραφιού',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  child: Text(
+                    isEditing ? 'Ενημέρωση Χωραφιού' : 'Αποθήκευση Χωραφιού',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
               ),
