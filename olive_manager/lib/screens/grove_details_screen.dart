@@ -8,7 +8,6 @@ import 'add_task_screen.dart';
 import 'add_harvest_screen.dart';
 import 'statistics_screen.dart';
 
-// Προσθέτουμε το SingleTickerProviderStateMixin για να δουλέψουν τα animations των Tabs
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;
   const GroveDetailsScreen({super.key, required this.grove});
@@ -25,14 +24,14 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   List<Harvest> harvests = [];
   bool isLoading = false;
   double totalCost = 0.0;
-  double totalOil = 0.0; // Συνολικό λάδι
+  double totalOil = 0.0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    // Όταν αλλάζει καρτέλα, ανανεώνουμε την οθόνη (για να αλλάζει το κουμπί +)
+    // Ανανεώνουμε την οθόνη όταν αλλάζει η καρτέλα (για το κουμπί +)
     _tabController.addListener(() {
       setState(() {});
     });
@@ -46,7 +45,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     super.dispose();
   }
 
-  // Φορτώνει τις εργασίες και τις συγκομιδές
   Future<void> _loadData() async {
     setState(() => isLoading = true);
 
@@ -87,14 +85,14 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       'https://www.google.com/maps/dir/?api=1&destination=${widget.grove.lat},${widget.grove.lng}',
     );
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Αδυναμία ανοίγματος χάρτη.')),
         );
+      }
     }
   }
 
-  // Δυναμική λειτουργία του κουμπιού + ανάλογα με την καρτέλα
   void _onFabPressed() async {
     bool? result;
     if (_tabController.index == 0) {
@@ -118,11 +116,16 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.grove.name),
+        title: Text(
+          widget.grove.name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.green[700],
-        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // ΝΕΟ ΚΟΥΜΠΙ ΓΙΑ ΣΤΑΤΙΣΤΙΚΑ
           IconButton(
             icon: const Icon(Icons.pie_chart),
             tooltip: 'Στατιστικά Εξόδων',
@@ -139,6 +142,17 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
             },
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.green[200],
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          tabs: const [
+            Tab(icon: Icon(Icons.build), text: 'ΕΡΓΑΣΙΕΣ'),
+            Tab(icon: Icon(Icons.opacity), text: 'ΣΥΓΚΟΜΙΔΗ'),
+          ],
+        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -208,7 +222,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
-                            // Παράθυρο Επιβεβαίωσης!
                             confirmDismiss: (direction) async {
                               return await showDialog(
                                 context: context,
@@ -295,7 +308,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                   ],
                 ),
 
-                // ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ
+                // ---- ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ ----
                 Column(
                   children: [
                     Container(
@@ -339,7 +352,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
-                            // Παράθυρο Επιβεβαίωσης!
                             confirmDismiss: (direction) async {
                               return await showDialog(
                                 context: context,
