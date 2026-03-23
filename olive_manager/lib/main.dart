@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart'; // Θα το φτιάξουμε αμέσως μετά!
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const OliveManagerApp());
