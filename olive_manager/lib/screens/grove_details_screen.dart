@@ -28,8 +28,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   List<Task> tasks = [];
   List<Harvest> harvests = [];
   bool isLoading = false;
+
+  // Οικονομικά Στοιχεία
   double totalCost = 0.0;
   double totalOil = 0.0;
+  double totalRevenue = 0.0;
 
   // Μεταβλητές για τον Προηγμένο Ενοποιημένο Καιρό 14 Ημερών
   bool isWeatherLoading = true;
@@ -71,22 +74,29 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       widget.grove.id,
     );
 
+    // Υπολογισμός Εξόδων
     double cost = 0.0;
     for (var t in fetchedTasks) cost += t.cost;
 
+    // Υπολογισμός Εσόδων & Λαδιού
     double oil = 0.0;
-    for (var h in fetchedHarvests) oil += h.oilVolume;
+    double revenue = 0.0;
+    for (var h in fetchedHarvests) {
+      oil += h.oilVolume;
+      revenue += (h.oilVolume * h.pricePerUnit); // Κέρδος = Ποσότητα x Τιμή
+    }
 
     setState(() {
       tasks = fetchedTasks;
       harvests = fetchedHarvests;
       totalCost = cost;
       totalOil = oil;
+      totalRevenue = revenue;
       isLoading = false;
     });
   }
 
-  // ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Φέρνει τον καιρό 14 Ημερών βάσει συντεταγμένων ΧΩΡΑΦΙΟΥ
+  // Καιρός 14 Ημερών βάσει συντεταγμένων ΧΩΡΑΦΙΟΥ
   Future<void> _fetchUnifiedGroveWeather() async {
     if (widget.grove.lat == null || widget.grove.lng == null) {
       setState(() => isWeatherLoading = false);
@@ -121,7 +131,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
   }
 
-  // ΑΛΓΟΡΙΘΜΟΣ ΑΝΑΛΥΣΗΣ: Σαρώνει ολόκληρη την εβδομάδα!
+  // Έξυπνος Αλγόριθμος Πρόβλεψης
   Map<String, dynamic> _getAdvancedFarmingAdvice() {
     if (currentWeatherCode == null ||
         dailyWeatherCodes.isEmpty ||
@@ -129,7 +139,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       return {
         'icon': Icons.info_outline,
         'color': Colors.grey,
-        'msg': 'Δεν υπάρχουν δεδομένα καιρού.',
+        'msg': 'Δεν υπάρχουν δεδομένα καιρού (Προσθέστε τοποθεσία).',
       };
     }
 
@@ -138,7 +148,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       return '${parts[2]}/${parts[1]}';
     }
 
-    // 1. Άνεμος ΣΗΜΕΡΑ
     if (windSpeed! > 15.0) {
       return {
         'icon': Icons.air,
@@ -148,7 +157,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       };
     }
 
-    // 2. Οποιαδήποτε Κακοκαιρία ΣΗΜΕΡΑ (Κωδικοί Open-Meteo >= 51 είναι Βροχή, Χιόνι, Καταιγίδα)
     if (currentWeatherCode! >= 51) {
       return {
         'icon': Icons.umbrella,
@@ -157,22 +165,16 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       };
     }
 
-    // ΣΑΡΩΣΗ ΕΠΟΜΕΝΩΝ 7 ΗΜΕΡΩΝ
     int? upcomingBadWeatherIndex;
     int? upcomingFrostIndex;
 
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      // Ψάχνουμε την ΠΡΩΤΗ μέρα με παγετό
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
         upcomingFrostIndex = i;
-      }
-      // Ψάχνουμε την ΠΡΩΤΗ μέρα με ΚΑΚΟΚΑΙΡΙΑ (>= 51)
-      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
+      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null)
         upcomingBadWeatherIndex = i;
-      }
     }
 
-    // 3. Παγετός στο μέλλον (Έχει προτεραιότητα γιατί καταστρέφει την παραγωγή)
     if (upcomingFrostIndex != null) {
       return {
         'icon': Icons.ac_unit,
@@ -182,9 +184,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       };
     }
 
-    // 4. Βροχή/Καταιγίδα στο μέλλον
     if (upcomingBadWeatherIndex != null) {
-      // Αν η κακοκαιρία είναι αύριο (index 1)
       if (upcomingBadWeatherIndex == 1) {
         return {
           'icon': Icons.warning_amber,
@@ -192,24 +192,21 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           'msg':
               'Αύριο αναμένεται κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
         };
-      }
-      // Αν η κακοκαιρία είναι πιο μετά
-      else {
+      } else {
         return {
           'icon': Icons.grass,
           'color': Colors.green[800],
           'msg':
-              'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα ώστε να το ποτίσει η βροχή.',
+              'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα.',
         };
       }
     }
 
-    // 5. Καλοκαιρία (Αν δεν βρήκε κανένα κωδικό >= 51 στις επόμενες 7 μέρες)
     return {
       'icon': Icons.wb_sunny,
       'color': Colors.green,
       'msg':
-          'Καλοκαιρία για τις επόμενες 7 ημέρες! Ιδανικές συνθήκες για ψεκασμούς και συγκομιδή.',
+          'Παρατεταμένη καλοκαιρία! Ιδανικές συνθήκες για ψεκασμούς και συγκομιδή.',
     };
   }
 
@@ -319,17 +316,15 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // --- ΤΟΠΙΚΟΣ ΚΑΙΡΟΣ & ΣΥΜΒΟΥΛΗ ΓΙΑ ΤΟ ΣΥΓΚΕΚΡΙΜΕΝΟ ΧΩΡΑΦΙ ---
+                // --- ΤΟΠΙΚΟΣ ΚΑΙΡΟΣ ΓΙΑ ΤΟ ΣΥΓΚΕΚΡΙΜΕΝΟ ΧΩΡΑΦΙ ---
                 if (widget.grove.lat != null &&
                     !isWeatherLoading &&
                     dailyDates.isNotEmpty)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Λίστα 14 Ημερών
                       Container(
-                        height:
-                            90, // Πιο συμπαγές για να μην πιάνει όλη την οθόνη
+                        height: 90,
                         margin: const EdgeInsets.only(top: 8),
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
@@ -394,7 +389,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         ),
                       ),
 
-                      // Η Έξυπνη Κάρτα Συμβουλής
                       Container(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 14,
@@ -454,7 +448,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ],
                   ),
 
-                // Μήνυμα αν δεν υπάρχει τοποθεσία
                 if (widget.grove.lat == null)
                   Container(
                     margin: const EdgeInsets.all(14),
@@ -470,7 +463,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Προσθέστε τοποθεσία στο χωράφι (από το εικονίδιο επεξεργασίας πάνω δεξιά) για να λαμβάνετε προγνώσεις καιρού 14 ημερών.',
+                            'Προσθέστε τοποθεσία στο χωράφι (από το εικονίδιο επεξεργασίας πάνω δεξιά) για να λαμβάνετε προγνώσεις καιρού.',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
@@ -478,7 +471,88 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ),
                   ),
 
-                // --- ΤΟ ΠΕΡΙΕΧΟΜΕΝΟ ΤΩΝ TABS ---
+                // --- ΝΕΟ ΟΙΚΟΝΟΜΙΚΟ DASHBOARD (ΑΝΑ ΧΩΡΑΦΙ) ---
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            'Έξοδα',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          Text(
+                            '${totalCost.toStringAsFixed(2)}€',
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(height: 30, width: 1, color: Colors.grey[300]),
+                      Column(
+                        children: [
+                          const Text(
+                            'Έσοδα',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          Text(
+                            '${totalRevenue.toStringAsFixed(2)}€',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(height: 30, width: 1, color: Colors.grey[300]),
+                      Column(
+                        children: [
+                          const Text(
+                            'Καθαρό Κέρδος',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '${(totalRevenue - totalCost) >= 0 ? '+' : ''}${(totalRevenue - totalCost).toStringAsFixed(2)}€',
+                            style: TextStyle(
+                              color: (totalRevenue - totalCost) >= 0
+                                  ? Colors.green[800]
+                                  : Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // --- TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ) ---
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -486,35 +560,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       // ---- ΚΑΡΤΕΛΑ 1: ΕΡΓΑΣΙΕΣ ----
                       Column(
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            color: Colors.red[50],
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Συνολικά Έξοδα',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${totalCost.toStringAsFixed(2)} €',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.redAccent,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           if (widget.grove.lat != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16.0,
-                                vertical: 6.0,
+                                vertical: 8.0,
                               ),
                               child: ElevatedButton.icon(
                                 onPressed: _navigateToMap,
@@ -524,7 +574,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                   size: 20,
                                 ),
                                 label: const Text(
-                                  'Πλοήγηση',
+                                  'Πλοήγηση στο Χωράφι',
                                   style: TextStyle(color: Colors.white),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -598,30 +648,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       // ---- ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ ----
                       Column(
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            color: Colors.amber[50],
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Συνολικό Λάδι',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${totalOil.toStringAsFixed(1)} Λίτρα',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           Expanded(
                             child: ListView.builder(
                               itemCount: harvests.length,
@@ -656,22 +682,53 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                         color: Colors.amber,
                                       ),
                                       title: Text(
-                                        '${harvest.oilVolume} L Λαδιού',
+                                        '${harvest.oilVolume} L λαδιού στα ${harvest.pricePerUnit} €/L',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
                                         ),
                                       ),
-                                      subtitle: Text(
-                                        'Από ${harvest.olivesWeight} kg • Οξύτητα: ${harvest.acidity}',
-                                        style: const TextStyle(fontSize: 12),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Από ${harvest.olivesWeight} kg • Οξύτητα: ${harvest.acidity}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Έσοδα: ${(harvest.oilVolume * harvest.pricePerUnit).toStringAsFixed(2)} €',
+                                            style: const TextStyle(
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      trailing: Text(
-                                        '${harvest.date.day}/${harvest.date.month}/${harvest.date.year}',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
+                                      isThreeLine: true,
+                                      // ΝΕΟ: Κουμπί επεξεργασίας Συγκομιδής!
+                                      trailing: IconButton(
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          size: 20,
+                                          color: Colors.blue,
                                         ),
+                                        onPressed: () async {
+                                          final result = await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  AddHarvestScreen(
+                                                    groveId: widget.grove.id,
+                                                    existingHarvest: harvest,
+                                                  ),
+                                            ),
+                                          );
+                                          if (result == true) _loadData();
+                                        },
                                       ),
                                     ),
                                   ),

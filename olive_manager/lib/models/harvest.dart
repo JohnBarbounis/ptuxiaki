@@ -4,7 +4,7 @@ class Harvest {
   final double oilVolume;
   final double olivesWeight;
   final double acidity;
-  final double pricePerUnit; // ΝΕΟ ΠΕΔΙΟ
+  final double pricePerUnit; // Νέο πεδίο
   final DateTime date;
 
   Harvest({
@@ -13,7 +13,7 @@ class Harvest {
     required this.oilVolume,
     required this.olivesWeight,
     required this.acidity,
-    required this.pricePerUnit, // ΝΕΟ
+    required this.pricePerUnit,
     required this.date,
   });
 
@@ -24,7 +24,7 @@ class Harvest {
       'oilVolume': oilVolume,
       'olivesWeight': olivesWeight,
       'acidity': acidity,
-      'pricePerUnit': pricePerUnit, // ΝΕΟ
+      'pricePerUnit': pricePerUnit,
       'date': date.toIso8601String(),
     };
   }
@@ -33,10 +33,10 @@ class Harvest {
     return Harvest(
       id: map['id'],
       groveId: map['groveId'],
-      oilVolume: map['oilVolume'],
-      olivesWeight: map['olivesWeight'],
-      acidity: map['acidity'],
-      pricePerUnit: map['pricePerUnit'] ?? 0.0,
+      oilVolume: (map['oilVolume'] as num).toDouble(),
+      olivesWeight: (map['olivesWeight'] as num).toDouble(),
+      acidity: (map['acidity'] as num).toDouble(),
+      pricePerUnit: (map['pricePerUnit'] as num? ?? 0.0).toDouble(),
       date: DateTime.parse(map['date']),
     );
   }

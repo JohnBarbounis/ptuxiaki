@@ -53,15 +53,15 @@ class DatabaseHelper {
 
     // 3. Πίνακας Συγκομιδής
     await db.execute('''
-    CREATE TABLE harvests (
-      id TEXT PRIMARY KEY,
-      groveId TEXT NOT NULL,
-      date TEXT NOT NULL,
-      olivesWeight REAL NOT NULL,
-      oilVolume REAL NOT NULL,
-      acidity REAL NOT NULL,
-      FOREIGN KEY (groveId) REFERENCES groves (id) ON DELETE CASCADE
-    )
+CREATE TABLE harvests(
+        id TEXT PRIMARY KEY,
+        groveId TEXT,
+        oilVolume REAL,
+        olivesWeight REAL,
+        acidity REAL,
+        pricePerUnit REAL,
+        date TEXT
+      )
     ''');
   }
 
@@ -246,5 +246,48 @@ class DatabaseHelper {
     ); // Ταξινομημένα από το πιο κοντινό στο πιο μακρινό
 
     return result;
+  }
+
+  // Ενημέρωση μίας υπάρχουσας συγκομιδής (Update)
+  Future<int> updateHarvest(Harvest harvest) async {
+    final db = await instance.database;
+    return await db.update(
+      'harvests',
+      harvest.toMap(),
+      where: 'id = ?',
+      whereArgs: [harvest.id],
+    );
+  }
+
+  // ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Υπολογίζει τα συνολικά έσοδα κατευθείαν με SQL
+  Future<double> getTotalRevenue({
+    String filter = 'all',
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final db = await instance.database;
+    String whereClause = '';
+    final now = DateTime.now();
+
+    if (filter == 'year') {
+      whereClause = "WHERE date LIKE '${now.year}-%'";
+    } else if (filter == 'month') {
+      final monthStr = now.month.toString().padLeft(2, '0');
+      whereClause = "WHERE date LIKE '${now.year}-$monthStr-%'";
+    } else if (filter == 'custom' && start != null && end != null) {
+      final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
+      whereClause =
+          "WHERE date >= '${start.toIso8601String()}' AND date <= '${endOfDay.toIso8601String()}'";
+    }
+
+    // Το SQL Query πολλαπλασιάζει Λίτρα με Τιμή για κάθε γραμμή και τα αθροίζει!
+    final result = await db.rawQuery(
+      'SELECT SUM(oilVolume * pricePerUnit) as total FROM harvests $whereClause',
+    );
+
+    if (result.first['total'] != null) {
+      return (result.first['total'] as num).toDouble();
+    }
+    return 0.0;
   }
 }

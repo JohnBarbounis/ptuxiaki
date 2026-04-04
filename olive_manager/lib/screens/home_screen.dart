@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 import 'add_grove_screen.dart';
@@ -21,21 +22,15 @@ class _HomeScreenState extends State<HomeScreen> {
   List<OliveGrove> myGroves = [];
   bool isLoading = false;
 
+  // ΝΕΕΣ Μεταβλητές για το Global Dashboard
   double totalAppExpenses = 0.0;
-  double totalAppOil = 0.0;
+  double totalAppRevenue = 0.0;
   String _selectedFilter = 'all';
   DateTimeRange? _customDateRange;
 
-  double currentOilPrice = 7.50;
-
-  // Μεταβλητές για τον Ενοποιημένο Καιρό
+  // Μεταβλητές για τον Καιρό (14 Ημερών)
   bool isWeatherLoading = true;
-  double? currentTemp;
-  double? windSpeed;
-  int? currentWeatherCode;
   String locationName = 'Φόρτωση...';
-
-  // Λίστες για τις 14 ημέρες
   List<dynamic> dailyDates = [];
   List<dynamic> dailyMaxTemps = [];
   List<dynamic> dailyMinTemps = [];
@@ -48,9 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUnifiedWeather();
   }
 
-  // ΜΙΑ κλήση για όλα τα δεδομένα καιρού (Τώρα για 14 μέρες!)
+  // --- ΣΥΝΑΡΤΗΣΕΙΣ ΚΑΙΡΟΥ (Από το προηγούμενο βήμα) ---
   Future<void> _fetchUnifiedWeather() async {
-    double lat = 35.3387; // Προεπιλογή Ηράκλειο
+    double lat = 35.3387;
     double lon = 25.1442;
     String tempLocation = 'Ηράκλειο (Προεπιλογή)';
 
@@ -58,27 +53,23 @@ class _HomeScreenState extends State<HomeScreen> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (serviceEnabled) {
         LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
+        if (permission == LocationPermission.denied)
           permission = await Geolocator.requestPermission();
-        }
-
         if (permission == LocationPermission.always ||
             permission == LocationPermission.whileInUse) {
           Position position = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.low,
           ).timeout(const Duration(seconds: 5));
-
           lat = position.latitude;
           lon = position.longitude;
           tempLocation = 'Τρέχουσα Τοποθεσία';
         }
       }
     } catch (e) {
-      print('Το GPS άργησε. Χρήση προεπιλογής.');
+      print('GPS Timeout.');
     }
 
     try {
-      // Όνομα Περιοχής
       final geoUrl = Uri.parse(
         'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lon&localityLanguage=el',
       );
@@ -90,9 +81,8 @@ class _HomeScreenState extends State<HomeScreen> {
         tempLocation = geoData['city'] ?? geoData['locality'] ?? tempLocation;
       }
 
-      // ΚΑΙΡΟΣ: Φέρνουμε Current ΚΑΙ 14-Day Daily
       final weatherUrl = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
+        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
       );
       final weatherResponse = await http
           .get(weatherUrl)
@@ -100,19 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (weatherResponse.statusCode == 200) {
         final data = json.decode(weatherResponse.body);
-
         setState(() {
-          // Σημερινά δεδομένα
-          currentTemp = data['current_weather']['temperature'];
-          windSpeed = data['current_weather']['windspeed'];
-          currentWeatherCode = data['current_weather']['weathercode'];
-
-          // Δεδομένα 14 Ημερών
           dailyDates = data['daily']['time'];
           dailyMaxTemps = data['daily']['temperature_2m_max'];
           dailyMinTemps = data['daily']['temperature_2m_min'];
           dailyWeatherCodes = data['daily']['weathercode'];
-
           locationName = tempLocation;
           isWeatherLoading = false;
         });
@@ -125,98 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ΑΛΓΟΡΙΘΜΟΣ ΑΝΑΛΥΣΗΣ: Σαρώνει ολόκληρη την εβδομάδα!
-  Map<String, dynamic> _getAdvancedFarmingAdvice() {
-    if (currentWeatherCode == null ||
-        dailyWeatherCodes.isEmpty ||
-        windSpeed == null) {
-      return {
-        'icon': Icons.info_outline,
-        'color': Colors.grey,
-        'msg': 'Δεν υπάρχουν δεδομένα καιρού.',
-      };
-    }
-
-    String formatDate(String dateStr) {
-      final parts = dateStr.split('-');
-      return '${parts[2]}/${parts[1]}';
-    }
-
-    // 1. Άνεμος ΣΗΜΕΡΑ
-    if (windSpeed! > 15.0) {
-      return {
-        'icon': Icons.air,
-        'color': Colors.orange,
-        'msg':
-            'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Απαγορευτικό για ψεκασμό!',
-      };
-    }
-
-    // 2. Οποιαδήποτε Κακοκαιρία ΣΗΜΕΡΑ (Κωδικοί Open-Meteo >= 51 είναι Βροχή, Χιόνι, Καταιγίδα)
-    if (currentWeatherCode! >= 51) {
-      return {
-        'icon': Icons.umbrella,
-        'color': Colors.blue,
-        'msg': 'Κακοκαιρία σήμερα. Αποφύγετε τις εργασίες στο χωράφι.',
-      };
-    }
-
-    // ΣΑΡΩΣΗ ΕΠΟΜΕΝΩΝ 7 ΗΜΕΡΩΝ
-    int? upcomingBadWeatherIndex;
-    int? upcomingFrostIndex;
-
-    for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      // Ψάχνουμε την ΠΡΩΤΗ μέρα με παγετό
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
-        upcomingFrostIndex = i;
-      }
-      // Ψάχνουμε την ΠΡΩΤΗ μέρα με ΚΑΚΟΚΑΙΡΙΑ (>= 51)
-      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
-        upcomingBadWeatherIndex = i;
-      }
-    }
-
-    // 3. Παγετός στο μέλλον (Έχει προτεραιότητα γιατί καταστρέφει την παραγωγή)
-    if (upcomingFrostIndex != null) {
-      return {
-        'icon': Icons.ac_unit,
-        'color': Colors.blueGrey,
-        'msg':
-            'Κίνδυνος παγετού στις ${formatDate(dailyDates[upcomingFrostIndex])}. Αποφύγετε τα κλαδέματα.',
-      };
-    }
-
-    // 4. Βροχή/Καταιγίδα στο μέλλον
-    if (upcomingBadWeatherIndex != null) {
-      // Αν η κακοκαιρία είναι αύριο (index 1)
-      if (upcomingBadWeatherIndex == 1) {
-        return {
-          'icon': Icons.warning_amber,
-          'color': Colors.orange[700],
-          'msg':
-              'Αύριο αναμένεται κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
-        };
-      }
-      // Αν η κακοκαιρία είναι πιο μετά
-      else {
-        return {
-          'icon': Icons.grass,
-          'color': Colors.green[800],
-          'msg':
-              'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα ώστε να το ποτίσει η βροχή.',
-        };
-      }
-    }
-
-    // 5. Καλοκαιρία (Αν δεν βρήκε κανένα κωδικό >= 51 στις επόμενες 7 μέρες)
-    return {
-      'icon': Icons.wb_sunny,
-      'color': Colors.green,
-      'msg':
-          'Καλοκαιρία για τις επόμενες 7 ημέρες! Ιδανικές συνθήκες για ψεκασμούς και συγκομιδή.',
-    };
-  }
-
   IconData _getWeatherIcon(int code) {
     if (code <= 3) return Icons.wb_sunny;
     if (code <= 48) return Icons.cloud;
@@ -225,63 +115,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return Icons.flash_on;
   }
 
+  // --- ΣΥΝΑΡΤΗΣΕΙΣ ΔΕΔΟΜΕΝΩΝ ---
   Future<void> _refreshGroves() async {
     setState(() => isLoading = true);
     myGroves = await DatabaseHelper.instance.getAllGroves();
+
+    // Ανάκτηση Εξόδων ΚΑΙ Εσόδων από τη βάση
     totalAppExpenses = await DatabaseHelper.instance.getTotalExpenses(
       filter: _selectedFilter,
       start: _customDateRange?.start,
       end: _customDateRange?.end,
     );
-    totalAppOil = await DatabaseHelper.instance.getTotalOilProduction(
+    totalAppRevenue = await DatabaseHelper.instance.getTotalRevenue(
       filter: _selectedFilter,
       start: _customDateRange?.start,
       end: _customDateRange?.end,
     );
-    setState(() => isLoading = false);
-  }
 
-  Future<void> _editOilPrice() async {
-    final TextEditingController priceController = TextEditingController(
-      text: currentOilPrice.toStringAsFixed(2),
-    );
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Τρέχουσα Τιμή Λαδιού'),
-          content: TextField(
-            controller: priceController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Τιμή ανά λίτρο/κιλό (€)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('ΑΚΥΡΩΣΗ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final newPrice = double.tryParse(priceController.text);
-                if (newPrice != null)
-                  setState(() => currentOilPrice = newPrice);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[700],
-              ),
-              child: const Text(
-                'ΑΠΟΘΗΚΕΥΣΗ',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    setState(() => isLoading = false);
   }
 
   Future<void> _pickCustomDateRange() async {
@@ -371,16 +222,57 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result == true) _refreshGroves();
   }
 
+  // ΝΕΟ WIDGET: Κάρτα Οικονομικού Δείκτη
+  Widget _buildFinancialCard(
+    String title,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.5), width: 1),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${amount >= 0 && title == 'Κέρδος' ? '+' : ''}${amount.toStringAsFixed(0)}€',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final advancedAdvice = _getAdvancedFarmingAdvice();
-    final double grossIncome = totalAppOil * currentOilPrice;
-    final double netProfit = grossIncome - totalAppExpenses;
+    final double netProfit = totalAppRevenue - totalAppExpenses;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Τα Χωράφια μου',
+          'Olive Manager',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: Colors.green[700],
@@ -399,7 +291,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Δημιουργία PDF...')),
               );
-              await PdfService.generateAndShareReport(currentOilPrice);
+              // Σημείωση: Πρέπει να προσαρμόσεις το PDF service αν έχεις αφαιρέσει το currentOilPrice
+              await PdfService.generateAndShareReport(0.0);
             },
           ),
         ],
@@ -408,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : ListView(
               children: [
-                // 1. ΠΡΟΓΝΩΣΗ 14 ΗΜΕΡΩΝ ΣΤΗΝ ΚΟΡΥΦΗ
+                // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ (Συμπαγής)
                 if (!isWeatherLoading && dailyDates.isNotEmpty)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,15 +314,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           bottom: 8.0,
                         ),
                         child: Text(
-                          "Πρόγνωση 14 Ημερών: $locationName",
+                          "Καιρός Περιοχής: $locationName",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14,
+                            color: Colors.blueGrey,
                           ),
                         ),
                       ),
                       SizedBox(
-                        height: 110,
+                        height: 90,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: dailyDates.length,
@@ -438,50 +332,46 @@ class _HomeScreenState extends State<HomeScreen> {
                             final dateParts = dailyDates[index]
                                 .toString()
                                 .split('-');
-                            final formattedDate =
-                                '${dateParts[2]}/${dateParts[1]}';
                             return Card(
-                              elevation: 2,
+                              elevation: 1,
                               margin: const EdgeInsets.only(
-                                right: 8,
+                                right: 6,
                                 bottom: 4,
-                                left: 4,
+                                left: 2,
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Container(
-                                width: 80,
-                                padding: const EdgeInsets.all(8),
+                                width: 65,
+                                padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: LinearGradient(
-                                    colors: [Colors.blue.shade50, Colors.white],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.blue[50],
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      index == 0 ? "Σήμερα" : formattedDate,
+                                      index == 0
+                                          ? "Σήμερα"
+                                          : '${dateParts[2]}/${dateParts[1]}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+                                        fontSize: 11,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 4),
                                     Icon(
                                       _getWeatherIcon(dailyWeatherCodes[index]),
                                       color: Colors.blue[600],
-                                      size: 28,
+                                      size: 22,
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      '${dailyMaxTemps[index].round()}° / ${dailyMinTemps[index].round()}°',
+                                      '${dailyMaxTemps[index].round()}°/${dailyMinTemps[index].round()}°',
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -495,103 +385,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
 
-                // 2. ΣΗΜΕΡΙΝΟΣ ΚΑΙΡΟΣ ΚΑΙ ΕΞΥΠΝΗ ΣΥΜΒΟΥΛΗ
-                if (!isWeatherLoading && currentTemp != null)
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.blue.shade200,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.thermostat,
-                                  color: Colors.redAccent,
-                                ),
-                                Text(
-                                  ' Τώρα: ${currentTemp}°C',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                const Icon(Icons.air, color: Colors.blueGrey),
-                                Text(
-                                  ' ${windSpeed} km/h',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 24, thickness: 1),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              advancedAdvice['icon'],
-                              color: advancedAdvice['color'],
-                              size: 32,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                advancedAdvice['msg'],
-                                style: TextStyle(
-                                  color: advancedAdvice['color'],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // 3. DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
+                // 2. ΝΕΟ GLOBAL DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
                 Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.3),
+                        color: Colors.grey.withOpacity(0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -603,15 +406,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Οικονομικά Στοιχεία',
+                            'Συνολική Εικόνα',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 18,
                             ),
                           ),
                           DropdownButton<String>(
                             value: _selectedFilter,
                             underline: const SizedBox(),
+                            icon: const Icon(
+                              Icons.filter_list,
+                              color: Colors.green,
+                            ),
                             items: const [
                               DropdownMenuItem(
                                 value: 'all',
@@ -644,161 +451,60 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-                      const Divider(),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.trending_down,
-                                  color: Colors.red,
-                                  size: 24,
-                                ),
-                                const Text(
-                                  'Έξοδα',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '${totalAppExpenses.toStringAsFixed(2)} €',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                              ],
+                      if (_selectedFilter == 'custom' &&
+                          _customDateRange != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '${_customDateRange!.start.day}/${_customDateRange!.start.month}/${_customDateRange!.start.year} - ${_customDateRange!.end.day}/${_customDateRange!.end.month}/${_customDateRange!.end.year}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
                             ),
-                            Container(
-                              height: 40,
-                              width: 1,
-                              color: Colors.grey[300],
-                            ),
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.water_drop,
-                                  color: Colors.amber,
-                                  size: 24,
-                                ),
-                                const Text(
-                                  'Λάδι',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '${totalAppOil.toStringAsFixed(1)} L',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const Divider(thickness: 1, color: Colors.black12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            InkWell(
-                              onTap: _editOilPrice,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50],
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.green[200]!),
-                                ),
-                                child: Column(
-                                  children: [
-                                    const Text(
-                                      'Τιμή Λαδιού ✎',
-                                      style: TextStyle(
-                                        color: Colors.green,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${currentOilPrice.toStringAsFixed(2)} €/L',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.green[800],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Container(
-                              height: 40,
-                              width: 1,
-                              color: Colors.grey[300],
-                            ),
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.account_balance_wallet,
-                                  color: Colors.black54,
-                                  size: 24,
-                                ),
-                                const Text(
-                                  'Καθαρό Κέρδος',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '${netProfit > 0 ? '+' : ''}${netProfit.toStringAsFixed(2)} €',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 22,
-                                    color: netProfit >= 0
-                                        ? Colors.green[700]
-                                        : Colors.red,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 12),
+
+                      // Οι 3 Κάρτες Οικονομικών
+                      Row(
+                        children: [
+                          _buildFinancialCard(
+                            'Έσοδα',
+                            totalAppRevenue,
+                            Icons.trending_up,
+                            Colors.green,
+                          ),
+                          _buildFinancialCard(
+                            'Έξοδα',
+                            totalAppExpenses,
+                            Icons.trending_down,
+                            Colors.red,
+                          ),
+                          _buildFinancialCard(
+                            'Κέρδος',
+                            netProfit,
+                            Icons.account_balance_wallet,
+                            netProfit >= 0 ? Colors.blue : Colors.orange,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
 
-                // 4. ΚΟΥΜΠΙ ΕΡΓΑΣΙΩΝ
+                // 3. ΚΟΥΜΠΙ ΕΡΓΑΣΙΩΝ
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const UpcomingTasksScreen(),
                       ),
                     ),
-                    icon: const Icon(Icons.calendar_month, color: Colors.white),
+                    icon: const Icon(Icons.checklist, color: Colors.white),
                     label: const Text(
-                      'Προβολή Μελλοντικών Εργασιών',
+                      'Μελλοντικές Εργασίες',
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -815,23 +521,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.only(
                     left: 16.0,
                     right: 16.0,
-                    top: 16.0,
+                    top: 24.0,
                     bottom: 8.0,
                   ),
                   child: Text(
-                    'Τα Χωράφια μου',
+                    'Η Περιουσία μου (Χωράφια)',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
 
-                // 5. ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
+                // 4. ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
                 myGroves.isEmpty
                     ? const Padding(
                         padding: EdgeInsets.all(16.0),
                         child: Center(
                           child: Text(
-                            'Δεν έχετε προσθέσει κανένα χωράφι ακόμα.',
-                            style: TextStyle(fontSize: 16),
+                            'Δεν έχετε προσθέσει κανένα χωράφι.',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         ),
                       )
@@ -859,10 +565,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             confirmDismiss: (direction) async {
                               return await showDialog(
                                 context: context,
-                                builder: (BuildContext context) => AlertDialog(
-                                  title: const Text("Διαγραφή Χωραφιού"),
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Διαγραφή;"),
                                   content: const Text(
-                                    "Είστε σίγουροι; Θα διαγραφούν οριστικά ΟΛΕΣ οι εργασίες αυτού του χωραφιού!",
+                                    "Θα διαγραφούν ΟΛΕΣ οι εργασίες αυτού του χωραφιού!",
                                   ),
                                   actions: [
                                     TextButton(
@@ -891,13 +597,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Card(
                               margin: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical: 8,
+                                vertical: 6,
+                              ),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: ListTile(
-                                leading: const Icon(
-                                  Icons.nature,
-                                  color: Colors.green,
-                                  size: 32,
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.green[100],
+                                  child: const Icon(
+                                    Icons.nature,
+                                    color: Colors.green,
+                                  ),
                                 ),
                                 title: Text(
                                   grove.name,
@@ -905,10 +617,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                subtitle: Text('${grove.area} στρέμματα'),
+                                subtitle: Text(
+                                  '${grove.area} στρέμματα',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
                                 trailing: const Icon(
                                   Icons.arrow_forward_ios,
                                   size: 16,
+                                  color: Colors.grey,
                                 ),
                                 onTap: () async {
                                   await Navigator.of(context).push(
@@ -930,7 +646,8 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddGrove,
         backgroundColor: Colors.green[700],
-        child: const Icon(Icons.add, color: Colors.white),
+        elevation: 4,
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }
