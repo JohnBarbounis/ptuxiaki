@@ -22,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<OliveGrove> myGroves = [];
   bool isLoading = false;
 
-  // ΝΕΕΣ Μεταβλητές για το Global Dashboard
+  // Μεταβλητές για το Global Dashboard
   double totalAppExpenses = 0.0;
   double totalAppRevenue = 0.0;
   String _selectedFilter = 'all';
@@ -30,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Μεταβλητές για τον Καιρό (14 Ημερών)
   bool isWeatherLoading = true;
+  double? currentTemp;
+  double? windSpeed;
+  int? currentWeatherCode;
   String locationName = 'Φόρτωση...';
   List<dynamic> dailyDates = [];
   List<dynamic> dailyMaxTemps = [];
@@ -43,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUnifiedWeather();
   }
 
-  // --- ΣΥΝΑΡΤΗΣΕΙΣ ΚΑΙΡΟΥ (Από το προηγούμενο βήμα) ---
+  // --- ΣΥΝΑΡΤΗΣΕΙΣ ΚΑΙΡΟΥ ---
   Future<void> _fetchUnifiedWeather() async {
     double lat = 35.3387;
     double lon = 25.1442;
@@ -82,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final weatherUrl = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
+        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
       );
       final weatherResponse = await http
           .get(weatherUrl)
@@ -91,6 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (weatherResponse.statusCode == 200) {
         final data = json.decode(weatherResponse.body);
         setState(() {
+          currentTemp = data['current_weather']['temperature'];
+          windSpeed = data['current_weather']['windspeed'];
+          currentWeatherCode = data['current_weather']['weathercode'];
+
           dailyDates = data['daily']['time'];
           dailyMaxTemps = data['daily']['temperature_2m_max'];
           dailyMinTemps = data['daily']['temperature_2m_min'];
@@ -107,6 +114,124 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Ο ΕΞΥΠΝΟΣ ΓΕΩΠΟΝΙΚΟΣ ΑΛΓΟΡΙΘΜΟΣ ΑΠΟΦΑΣΕΩΝ
+  Map<String, dynamic> _getAdvancedFarmingAdvice() {
+    // 0. Έλεγχος αν υπάρχουν δεδομένα
+    if (currentWeatherCode == null ||
+        dailyWeatherCodes.isEmpty ||
+        windSpeed == null) {
+      return {
+        'icon': Icons.info_outline,
+        'color': Colors.grey,
+        'msg': 'Αναμονή δεδομένων καιρού...',
+      };
+    }
+
+    // Βοηθητική συνάρτηση για μορφοποίηση ημερομηνίας (π.χ. 25/03)
+    String formatDate(String dateStr) {
+      final parts = dateStr.split('-');
+      if (parts.length >= 3) return '${parts[2]}/${parts[1]}';
+      return dateStr;
+    }
+
+    // --- 1. ΑΜΕΣΟΙ ΠΕΡΙΟΡΙΣΜΟΙ (ΣΗΜΕΡΑ) ---
+
+    // Α. Βροχή / Χιόνι / Καταιγίδα σήμερα (Κωδικοί >= 51)
+    if (currentWeatherCode! >= 51) {
+      return {
+        'icon': Icons.umbrella,
+        'color': Colors.blue,
+        'msg':
+            'Κακοκαιρία σήμερα. Αποφύγετε την είσοδο στο χωράφι και τους ψεκασμούς.',
+      };
+    }
+
+    // Β. Δυνατός άνεμος σήμερα
+    if (windSpeed! > 15.0) {
+      return {
+        'icon': Icons.air,
+        'color': Colors.orange,
+        'msg':
+            'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Αυστηρό απαγορευτικό για ψεκασμό λόγω αερομεταφοράς!',
+      };
+    }
+
+    // --- 2. ΣΑΡΩΣΗ ΜΕΛΛΟΝΤΙΚΩΝ ΣΥΝΘΗΚΩΝ (Επόμενες 7 ημέρες) ---
+
+    int? upcomingFrostIndex;
+    int? upcomingRainIndex;
+    int? upcomingHeatwaveIndex;
+
+    // Ξεκινάμε από το index 1 (Αύριο) έως το 7
+    for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
+      // Ψάχνουμε τον πρώτο Παγετό (< 2°C)
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
+        upcomingFrostIndex = i;
+
+      // Ψάχνουμε την πρώτη μέρα με Βροχή/Καταιγίδα (>= 51)
+      if (dailyWeatherCodes[i] >= 51 && upcomingRainIndex == null)
+        upcomingRainIndex = i;
+
+      // Ψάχνουμε τον πρώτο Καύσωνα (> 35°C) - Απαιτεί να έχεις τη λίστα dailyMaxTemps
+      if (dailyMaxTemps.isNotEmpty &&
+          dailyMaxTemps[i] > 35.0 &&
+          upcomingHeatwaveIndex == null) {
+        upcomingHeatwaveIndex = i;
+      }
+    }
+
+    // --- 3. ΑΠΟΦΑΣΕΙΣ ΒΑΣΕΙ ΜΕΛΛΟΝΤΙΚΩΝ ΣΥΝΘΗΚΩΝ (Ιεραρχικά) ---
+
+    // Προτεραιότητα 1: Παγετός (Καταστρέφει τα δέντρα αν κλαδευτούν)
+    if (upcomingFrostIndex != null) {
+      return {
+        'icon': Icons.ac_unit,
+        'color': Colors.blueGrey,
+        'msg':
+            'Κίνδυνος παγετού στις ${formatDate(dailyDates[upcomingFrostIndex])}. Απαγορεύεται αυστηρά το κλάδεμα αυτές τις μέρες.',
+      };
+    }
+
+    // Προτεραιότητα 2: Καύσωνας (Υδατικό στρες για το δέντρο)
+    if (upcomingHeatwaveIndex != null) {
+      return {
+        'icon': Icons.local_fire_department,
+        'color': Colors.redAccent,
+        'msg':
+            'Αναμένεται καύσωνας στις ${formatDate(dailyDates[upcomingHeatwaveIndex])}. Προγραμματίστε άρδευση (πότισμα) το συντομότερο.',
+      };
+    }
+
+    // Προτεραιότητα 3: Βροχή (Ευκαιρία για λίπανση)
+    if (upcomingRainIndex != null) {
+      if (upcomingRainIndex == 1) {
+        // Αν η βροχή είναι αύριο
+        return {
+          'icon': Icons.warning_amber,
+          'color': Colors.orange[700],
+          'msg':
+              'Αύριο αναμένεται βροχή! Τέλεια ευκαιρία να ρίξετε επιφανειακό λίπασμα σήμερα.',
+        };
+      } else {
+        // Αν η βροχή είναι σε 2 έως 7 μέρες
+        return {
+          'icon': Icons.grass,
+          'color': Colors.green[800],
+          'msg':
+              'Αναμένεται βροχή στις ${formatDate(dailyDates[upcomingRainIndex])}. Προγραμματίστε τη λίπανση κοντά σε εκείνη τη μέρα.',
+        };
+      }
+    }
+
+    // --- 4. ΠΡΟΕΠΙΛΟΓΗ: ΙΔΑΝΙΚΟΣ ΚΑΙΡΟΣ ---
+    return {
+      'icon': Icons.wb_sunny,
+      'color': Colors.green,
+      'msg':
+          'Ιδανικός καιρός τις επόμενες μέρες! Προχωρήστε ελεύθερα σε ψεκασμούς, κλαδέματα ή συγκομιδή.',
+    };
+  }
+
   IconData _getWeatherIcon(int code) {
     if (code <= 3) return Icons.wb_sunny;
     if (code <= 48) return Icons.cloud;
@@ -120,7 +245,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = true);
     myGroves = await DatabaseHelper.instance.getAllGroves();
 
-    // Ανάκτηση Εξόδων ΚΑΙ Εσόδων από τη βάση
     totalAppExpenses = await DatabaseHelper.instance.getTotalExpenses(
       filter: _selectedFilter,
       start: _customDateRange?.start,
@@ -222,7 +346,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result == true) _refreshGroves();
   }
 
-  // ΝΕΟ WIDGET: Κάρτα Οικονομικού Δείκτη
   Widget _buildFinancialCard(
     String title,
     double amount,
@@ -268,6 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final double netProfit = totalAppRevenue - totalAppExpenses;
+    final advancedAdvice = _getAdvancedFarmingAdvice(); // Καλούμε τη λογική
 
     return Scaffold(
       appBar: AppBar(
@@ -291,7 +415,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Δημιουργία PDF...')),
               );
-              // Σημείωση: Πρέπει να προσαρμόσεις το PDF service αν έχεις αφαιρέσει το currentOilPrice
               await PdfService.generateAndShareReport(0.0);
             },
           ),
@@ -301,7 +424,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : ListView(
               children: [
-                // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ (Συμπαγής)
+                // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ 14 ΗΜΕΡΩΝ
                 if (!isWeatherLoading && dailyDates.isNotEmpty)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,10 +505,56 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                       ),
+
+                      // ΤΟ ΕΞΥΠΝΟ ΜΗΝΥΜΑ ΠΟΥ ΕΙΧΕ ΧΑΘΕΙ!
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: advancedAdvice['color'].withOpacity(0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: advancedAdvice['color'].withOpacity(0.1),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              advancedAdvice['icon'],
+                              color: advancedAdvice['color'],
+                              size: 32,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                advancedAdvice['msg'],
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
 
-                // 2. ΝΕΟ GLOBAL DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
+                // 2. GLOBAL DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
