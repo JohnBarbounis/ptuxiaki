@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
-
+import '../services/backup_service.dart';
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
 import 'add_grove_screen.dart';
@@ -420,6 +420,218 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.green[700]),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.agriculture, color: Colors.white, size: 48),
+                  SizedBox(height: 12),
+                  Text(
+                    'Olive Manager',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Διαχείριση & Αντίγραφα',
+                    style: TextStyle(color: Colors.greenAccent, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+
+            // Το υπάρχον DrawerHeader ...
+            ListTile(
+              leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+              title: const Text('Δημιουργία Backup'),
+              subtitle: const Text('Αποθήκευση ή Κοινοποίηση'),
+              onTap: () {
+                Navigator.pop(context); // Κλείνει το πλαϊνό μενού
+
+                // ΝΕΟ: Ανοίγει ένα αναδυόμενο μενού από κάτω (Bottom Sheet)
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  builder: (context) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Επιλογή Αποθήκευσης',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.download,
+                            color: Colors.green,
+                            size: 28,
+                          ),
+                          title: const Text('Αποθήκευση στη συσκευή'),
+                          subtitle: const Text('Στις Λήψεις ή στα Έγγραφά σας'),
+                          onTap: () async {
+                            // 1. ΣΩΤΗΡΙΑ ΚΙΝΗΣΗ: Αποθηκεύουμε τον "αγγελιοφόρο" πριν κλείσει το μενού
+                            final scaffoldMessenger = ScaffoldMessenger.of(
+                              context,
+                            );
+
+                            // 2. Κλείνουμε το αναδυόμενο μενού (Bottom Sheet)
+                            Navigator.pop(context);
+
+                            // 3. Εκτελούμε την ασύγχρονη λειτουργία
+                            bool success =
+                                await BackupService.saveDatabaseLocally();
+
+                            // 4. Χρησιμοποιούμε τη μεταβλητή που σώσαμε, ΟΧΙ το context απευθείας!
+                            if (success && mounted) {
+                              scaffoldMessenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Το Backup αποθηκεύτηκε επιτυχώς!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.share,
+                            color: Colors.blue,
+                            size: 28,
+                          ),
+                          title: const Text('Κοινοποίηση (Cloud/Email)'),
+                          subtitle: const Text(
+                            'Στείλτε το στο Google Drive ή σε Email',
+                          ),
+                          onTap: () async {
+                            Navigator.pop(context); // Κλείνει το Bottom Sheet
+                            await BackupService.exportDatabase();
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            const Divider(), // ΠΡΟΣΘΗΚΗ ΑΠΟ ΕΔΩ ΚΑΙ ΚΑΤΩ
+
+            ListTile(
+              leading: const Icon(
+                Icons.table_chart,
+                color: Colors.green,
+                size: 28,
+              ),
+              title: const Text('Εξαγωγή σε Excel'),
+              subtitle: const Text('Δημιουργία αρχείου .xlsx'),
+              onTap: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                Navigator.pop(context); // Κλείνει το μενού
+
+                // Δείχνουμε ένα μικρό μήνυμα αναμονής (γιατί το Excel παίρνει 1-2 δευτερόλεπτα)
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(content: Text('Δημιουργία αρχείου Excel...')),
+                );
+
+                bool success = await BackupService.exportToExcel();
+
+                if (success && mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Το Excel δημιουργήθηκε!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Αποτυχία δημιουργίας Excel.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.settings_backup_restore,
+                color: Colors.orange,
+              ),
+              title: const Text('Επαναφορά Δεδομένων'),
+              subtitle: const Text('Εισαγωγή από υπάρχον αρχείο'),
+              onTap: () async {
+                Navigator.pop(context); // Κλείνει το μενού
+
+                // Προειδοποιητικό μήνυμα πριν την επαναφορά
+                bool? confirm = await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Προσοχή!'),
+                    content: const Text(
+                      'Η επαναφορά θα διαγράψει τα τωρινά σας δεδομένα και θα τα αντικαταστήσει με το αντίγραφο ασφαλείας. Είστε σίγουροι;',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('ΑΚΥΡΩΣΗ'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'ΝΑΙ, ΕΠΑΝΑΦΟΡΑ',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  bool success = await BackupService.importDatabase();
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Η επαναφορά ολοκληρώθηκε επιτυχώς!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    _refreshGroves(); // Ανανέωση της οθόνης για να δείξει τα νέα δεδομένα
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Ακύρωση ή σφάλμα επαναφοράς.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : ListView(
