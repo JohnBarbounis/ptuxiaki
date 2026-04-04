@@ -1,28 +1,31 @@
 class Harvest {
   final String id;
-  final String groveId; // Αναφορά στο ελαιώνα που ανήκει η συγκομιδή
-  final DateTime date; // Ημερομηνία συγκομιδής
-  final double olivesWeight; // Κιλά ελιάς
-  final double oilVolume; // Κιλά/Λίτρα λαδιού
-  final double acidity; // Οξύτητα
+  final String groveId;
+  final double oilVolume;
+  final double olivesWeight;
+  final double acidity;
+  final double pricePerUnit; // ΝΕΟ ΠΕΔΙΟ
+  final DateTime date;
 
   Harvest({
     required this.id,
     required this.groveId,
-    required this.date,
-    required this.olivesWeight,
     required this.oilVolume,
+    required this.olivesWeight,
     required this.acidity,
+    required this.pricePerUnit, // ΝΕΟ
+    required this.date,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'groveId': groveId,
-      'date': date.toIso8601String(),
-      'olivesWeight': olivesWeight,
       'oilVolume': oilVolume,
+      'olivesWeight': olivesWeight,
       'acidity': acidity,
+      'pricePerUnit': pricePerUnit, // ΝΕΟ
+      'date': date.toIso8601String(),
     };
   }
 
@@ -30,10 +33,11 @@ class Harvest {
     return Harvest(
       id: map['id'],
       groveId: map['groveId'],
-      date: DateTime.parse(map['date']),
-      olivesWeight: map['olivesWeight'],
       oilVolume: map['oilVolume'],
+      olivesWeight: map['olivesWeight'],
       acidity: map['acidity'],
+      pricePerUnit: map['pricePerUnit'] ?? 0.0,
+      date: DateTime.parse(map['date']),
     );
   }
 }

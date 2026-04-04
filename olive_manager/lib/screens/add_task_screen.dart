@@ -121,7 +121,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: const InputDecoration(
                   labelText: 'Είδος Εργασίας',
                   border: OutlineInputBorder(),
@@ -179,7 +179,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         'Δημιουργεί αυτόματα μελλοντική εκκρεμότητα',
                       ),
                       value: _scheduleNext,
-                      activeColor: Colors.blue[700],
+                      activeThumbColor: Colors.blue[700],
                       onChanged: (bool value) {
                         setState(() => _scheduleNext = value);
                       },
@@ -187,7 +187,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     if (_scheduleNext) ...[
                       const SizedBox(height: 8),
                       DropdownButtonFormField<Map<String, dynamic>>(
-                        value: _selectedPreset,
+                        initialValue: _selectedPreset,
                         decoration: const InputDecoration(
                           labelText: 'Επιλογή Προτύπου',
                           border: OutlineInputBorder(),

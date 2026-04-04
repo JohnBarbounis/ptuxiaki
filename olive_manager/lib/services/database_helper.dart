@@ -158,7 +158,7 @@ class DatabaseHelper {
   Future<void> deleteGrove(String id) async {
     final db = await instance.database;
     await db.delete('tasks', where: 'groveId = ?', whereArgs: [id]);
-    await db.delete('harvests', where: 'groveId = ?', whereArgs: [id]); // ΝΕΟ
+    await db.delete('harvests', where: 'groveId = ?', whereArgs: [id]);
     await db.delete('groves', where: 'id = ?', whereArgs: [id]);
   }
 
