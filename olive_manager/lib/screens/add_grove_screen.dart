@@ -1,10 +1,11 @@
+import 'dart:convert';
+import 'dart:math'
+    as math; // ΝΕΟ: Απαραίτητο για τους μαθηματικούς υπολογισμούς!
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
+import 'map_picker_screen.dart';
 
 class AddGroveScreen extends StatefulWidget {
   final OliveGrove? existingGrove;
@@ -17,341 +18,250 @@ class AddGroveScreen extends StatefulWidget {
 
 class _AddGroveScreenState extends State<AddGroveScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _areaController = TextEditingController();
-  final _addressController = TextEditingController();
+  late TextEditingController _nameController;
+  late TextEditingController _areaController;
 
-  final MapController _mapController = MapController();
-  LatLng? _selectedLocation;
-  bool _isLocating = true;
+  List<LatLng> _selectedBoundaries = [];
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(
+      text: widget.existingGrove?.name ?? '',
+    );
+    _areaController = TextEditingController(
+      text: widget.existingGrove?.area.toString() ?? '',
+    );
 
-    // Ελέγχουμε αν κάνουμε Επεξεργασία υπάρχοντος χωραφιού
     if (widget.existingGrove != null) {
-      _nameController.text = widget.existingGrove!.name;
-      _areaController.text = widget.existingGrove!.area.toString();
-
-      if (widget.existingGrove!.lat != null &&
-          widget.existingGrove!.lng != null) {
-        _selectedLocation = LatLng(
-          widget.existingGrove!.lat!,
-          widget.existingGrove!.lng!,
-        );
-        _isLocating = false;
-        _getAddressFromLatLng(_selectedLocation!);
-        // Μετακίνηση χάρτη αφού χτιστεί η οθόνη
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _mapController.move(_selectedLocation!, 15.0);
-        });
-      } else {
-        // Αν το χωράφι δεν είχε τοποθεσία, ψάξε το GPS τώρα
-        _getUserLocation();
-      }
-    } else {
-      // Νέο χωράφι, άρα ψάξε GPS
-      _getUserLocation();
+      _selectedBoundaries = widget.existingGrove!.getPolygon();
     }
   }
 
-  void _showFallbackMessage(String message) {
-    if (mounted) {
-      setState(() => _isLocating = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.orange[800],
-          duration: const Duration(seconds: 4),
-        ),
-      );
+  // ΝΕΟΣ ΑΛΓΟΡΙΘΜΟΣ: Υπολογισμός Εμβαδού Πολυγώνου στη Σφαίρα της Γης
+  double _calculatePolygonAreaInStremmata(List<LatLng> points) {
+    if (points.length < 3)
+      return 0.0; // Ένα πολύγωνο χρειάζεται τουλάχιστον 3 σημεία
+
+    const double earthRadius =
+        6378137.0; // Ακτίνα της Γης στον Ισημερινό (σε μέτρα)
+    double area = 0.0;
+
+    for (int i = 0; i < points.length; i++) {
+      int j = (i + 1) % points.length;
+
+      // Μετατροπή των μοιρών σε Ακτίνια (Radians)
+      double lat1 = points[i].latitude * math.pi / 180;
+      double lng1 = points[i].longitude * math.pi / 180;
+      double lat2 = points[j].latitude * math.pi / 180;
+      double lng2 = points[j].longitude * math.pi / 180;
+
+      // Γεωγραφικός τύπος υπολογισμού
+      area += (lng2 - lng1) * (2 + math.sin(lat1) + math.sin(lat2));
     }
+
+    // Το αποτέλεσμα βγαίνει σε Τετραγωνικά Μέτρα
+    area = (area * earthRadius * earthRadius / 2.0).abs();
+
+    // Επιστρέφουμε Στρέμματα (1 στρέμμα = 1000 τ.μ.)
+    return area / 1000.0;
   }
 
-  Future<void> _getAddressFromLatLng(LatLng position) async {
-    try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        setState(() {
-          String address =
-              '${place.street ?? ''}, ${place.locality ?? place.subAdministrativeArea ?? ''}';
-          address = address.replaceAll(RegExp(r'^, |, $'), '').trim();
-          _addressController.text = (address.isEmpty || address == ',')
-              ? 'Γνωστή τοποθεσία, χωρίς ακριβή οδό'
-              : address;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _addressController.text = 'Άγνωστη διεύθυνση (Εκτός Σύνδεσης)';
-      });
-    }
-  }
-
-  Future<void> _searchAddressFromText() async {
-    final query = _addressController.text.trim();
-    if (query.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _isLocating = true);
-
-    try {
-      List<Location> locations = await locationFromAddress(query);
-      if (locations.isNotEmpty) {
-        LatLng newPos = LatLng(
-          locations.first.latitude,
-          locations.first.longitude,
-        );
-        setState(() {
-          _selectedLocation = newPos;
-          _isLocating = false;
-        });
-        _mapController.move(newPos, 15.0);
-      }
-    } catch (e) {
-      _showFallbackMessage('Δεν βρέθηκε. Ελέγξτε τη σύνδεσή σας.');
-    }
-  }
-
-  Future<void> _getUserLocation() async {
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        _showFallbackMessage(
-          'Το GPS είναι κλειστό. Αποθηκεύστε χωρίς τοποθεσία.',
-        );
-        return;
-      }
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showFallbackMessage(
-            'Δεν δόθηκε άδεια. Αποθηκεύστε χωρίς τοποθεσία.',
-          );
-          return;
-        }
-      }
-      if (permission == LocationPermission.deniedForever) return;
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      if (mounted) {
-        LatLng newLocation = LatLng(position.latitude, position.longitude);
-        setState(() {
-          _selectedLocation = newLocation;
-          _isLocating = false;
-        });
-        _mapController.move(_selectedLocation!, 15.0);
-        _getAddressFromLatLng(newLocation);
-      }
-    } catch (e) {
-      _showFallbackMessage(
-        'Αδυναμία εύρεσης. Μπορείτε να αποθηκεύσετε χωρίς χάρτη.',
-      );
-    }
-  }
-
-  Future<void> _saveGrove() async {
+  void _saveGrove() async {
     if (_formKey.currentState!.validate()) {
-      // ΔΗΜΙΟΥΡΓΙΑ Ή ΕΝΗΜΕΡΩΣΗ ΧΩΡΑΦΙΟΥ
-      final groveToSave = OliveGrove(
+      String? boundariesJson;
+      double? centerLat;
+      double? centerLng;
+
+      if (_selectedBoundaries.isNotEmpty) {
+        boundariesJson = jsonEncode(
+          _selectedBoundaries
+              .map((p) => {'lat': p.latitude, 'lng': p.longitude})
+              .toList(),
+        );
+        centerLat = _selectedBoundaries.first.latitude;
+        centerLng = _selectedBoundaries.first.longitude;
+      }
+
+      // Αντικατάσταση τυχόν κόμματος (,) με τελεία (.) για να μην κρασάρει το double.parse
+      String safeAreaText = _areaController.text.replaceAll(',', '.');
+
+      final grove = OliveGrove(
         id:
             widget.existingGrove?.id ??
             DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
-        area: double.parse(_areaController.text),
-        lat: _selectedLocation?.latitude,
-        lng: _selectedLocation?.longitude,
+        area: double.parse(
+          safeAreaText,
+        ), // Χρησιμοποιεί ό,τι λέει το TextField (το αυτόματο ή του χρήστη)
+        lat: centerLat,
+        lng: centerLng,
+        boundaries: boundariesJson,
       );
 
-      if (widget.existingGrove != null) {
-        await DatabaseHelper.instance.updateGrove(groveToSave);
+      if (widget.existingGrove == null) {
+        await DatabaseHelper.instance.insertGrove(grove);
       } else {
-        await DatabaseHelper.instance.insertGrove(groveToSave);
+        await DatabaseHelper.instance.updateGrove(grove);
       }
 
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
+      Navigator.pop(context, true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.existingGrove != null;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isEditing ? 'Επεξεργασία Χωραφιού' : 'Νέο Χωράφι',
-          style: const TextStyle(color: Colors.white),
+          widget.existingGrove == null ? 'Νέο Χωράφι' : 'Επεξεργασία Χωραφιού',
         ),
         backgroundColor: Colors.green[700],
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Όνομα Χωραφιού',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Εισάγετε όνομα' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _areaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Στρέμματα',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Πεδίο Διεύθυνσης με κουμπί εκκαθάρισης
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: InputDecoration(
-                      labelText: _selectedLocation == null
-                          ? 'Χωρίς Τοποθεσία'
-                          : 'Διεύθυνση / Αναζήτηση',
-                      hintText: 'Αναζήτηση περιοχής...',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: Icon(
-                        _selectedLocation == null
-                            ? Icons.location_off
-                            : Icons.location_on,
-                        color: _selectedLocation == null
-                            ? Colors.grey
-                            : Colors.red,
-                      ),
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_selectedLocation != null)
-                            IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.grey),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedLocation = null;
-                                  _addressController.clear();
-                                });
-                              },
-                              tooltip: 'Αφαίρεση Τοποθεσίας',
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.search, color: Colors.blue),
-                            onPressed: _searchAddressFromText,
-                          ),
-                        ],
-                      ),
-                    ),
-                    onFieldSubmitted: (_) => _searchAddressFromText(),
-                  ),
-                ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Όνομα Χωραφιού (π.χ. Κάτω Ελιές)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.nature),
+                ),
+                validator: (value) => value!.isEmpty ? 'Εισάγετε όνομα' : null,
               ),
-            ),
+              const SizedBox(height: 16),
 
-            // Ο Χάρτης
-            Expanded(
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter:
-                          _selectedLocation ?? const LatLng(38.2462, 21.7351),
-                      initialZoom:
-                          15.0, // Αυξήσαμε λίγο το ζουμ για καλύτερη ορατότητα
-                      onTap: (tapPosition, point) {
-                        setState(() => _selectedLocation = point);
-                        _getAddressFromLatLng(point);
-                      },
-                    ),
+              // Το πεδίο των Στρεμμάτων (Επεξεργάσιμο από τον χρήστη)
+              TextFormField(
+                controller: _areaController,
+                decoration: InputDecoration(
+                  labelText: 'Στρέμματα',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.square_foot),
+                  suffixText: 'Στρέμματα',
+                  // Μικρό βοηθητικό μήνυμα αν έχει γίνει αυτόματος υπολογισμός
+                  helperText: _selectedBoundaries.isNotEmpty
+                      ? 'Μπορείτε να τροποποιήσετε την αυτόματη τιμή'
+                      : null,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (value) =>
+                    value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
+              ),
+
+              const SizedBox(height: 24),
+
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.green[300]!),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.olive_manager',
+                      Icon(
+                        Icons.map,
+                        size: 48,
+                        color: _selectedBoundaries.isEmpty
+                            ? Colors.grey
+                            : Colors.green,
                       ),
-                      if (_selectedLocation != null)
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: _selectedLocation!,
-                              width: 40,
-                              height: 40,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 40,
+                      const SizedBox(height: 8),
+                      Text(
+                        _selectedBoundaries.isEmpty
+                            ? 'Δεν έχετε ορίσει σύνορα στον χάρτη'
+                            : 'Τα σύνορα έχουν οριστεί επιτυχώς!',
+                        style: TextStyle(
+                          color: _selectedBoundaries.isEmpty
+                              ? Colors.grey[700]
+                              : Colors.green[700],
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[700],
+                        ),
+                        icon: const Icon(Icons.draw, color: Colors.white),
+                        label: const Text(
+                          'Σχεδιασμός στον Χάρτη',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MapPickerScreen(
+                                initialBoundaries: _selectedBoundaries,
                               ),
                             ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: FloatingActionButton(
-                      mini: true, // Το κάνουμε μικρό για να μην πιάνει χώρο
-                      backgroundColor: Colors.white,
-                      onPressed: () {
-                        setState(() => _isLocating = true);
-                        _getUserLocation(); // Καλεί την υπάρχουσα συνάρτηση που βρίσκει το GPS
-                      },
-                      child: const Icon(Icons.my_location, color: Colors.blue),
-                    ),
-                  ),
+                          );
 
-                  if (_isLocating)
-                    Container(
-                      color: Colors.black45,
-                      child: const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
+                          if (result != null && result is List<LatLng>) {
+                            setState(() {
+                              _selectedBoundaries = result;
+
+                              // ΝΕΟ: Αυτόματος Υπολογισμός Εμβαδού!
+                              double calcArea =
+                                  _calculatePolygonAreaInStremmata(result);
+
+                              if (calcArea > 0) {
+                                // Γράφουμε το νούμερο στο πεδίο (με 2 δεκαδικά ψηφία)
+                                _areaController.text = calcArea.toStringAsFixed(
+                                  2,
+                                );
+
+                                // Πετάμε όμορφο μήνυμα επιβεβαίωσης
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Τα στρέμματα υπολογίστηκαν αυτόματα από τον χάρτη!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            });
+                          }
+                        },
                       ),
-                    ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[700],
-                  ),
-                  onPressed: _saveGrove,
-                  child: Text(
-                    isEditing ? 'Ενημέρωση Χωραφιού' : 'Αποθήκευση Χωραφιού',
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _saveGrove,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'ΑΠΟΘΗΚΕΥΣΗ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

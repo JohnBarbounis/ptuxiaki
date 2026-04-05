@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_map/flutter_map.dart'; // ΝΕΟ: Για τον χάρτη
+import 'package:latlong2/latlong.dart'; // ΝΕΟ: Για τις συντεταγμένες
 
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
@@ -34,26 +36,29 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   double totalOil = 0.0;
   double totalRevenue = 0.0;
 
-  // Μεταβλητές για τον Προηγμένο Ενοποιημένο Καιρό 14 Ημερών
+  // Μεταβλητές Καιρού
   bool isWeatherLoading = true;
   double? currentTemp;
   double? windSpeed;
   int? currentWeatherCode;
-
   List<dynamic> dailyDates = [];
   List<dynamic> dailyMaxTemps = [];
   List<dynamic> dailyMinTemps = [];
   List<dynamic> dailyWeatherCodes = [];
 
+  // Μεταβλητές Χάρτη
+  List<LatLng> polygonPoints = [];
+  LatLng? mapCenter;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
     _tabController.addListener(() {
       setState(() {});
     });
 
+    _initializeMapData();
     _loadData();
     _fetchUnifiedGroveWeather();
   }
@@ -64,9 +69,31 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     super.dispose();
   }
 
+  // --- ΝΕΟ: Αρχικοποίηση Δεδομένων Χάρτη ---
+  void _initializeMapData() {
+    polygonPoints = widget.grove.getPolygon();
+
+    // Αν έχουμε πολύγωνο, βρίσκουμε το κέντρο του για να κεντράρουμε τον χάρτη
+    if (polygonPoints.isNotEmpty) {
+      double latSum = 0;
+      double lngSum = 0;
+      for (var p in polygonPoints) {
+        latSum += p.latitude;
+        lngSum += p.longitude;
+      }
+      mapCenter = LatLng(
+        latSum / polygonPoints.length,
+        lngSum / polygonPoints.length,
+      );
+    }
+    // Αν δεν έχουμε πολύγωνο αλλά έχουμε απλό σημείο (από παλιά εγγραφή)
+    else if (widget.grove.lat != null && widget.grove.lng != null) {
+      mapCenter = LatLng(widget.grove.lat!, widget.grove.lng!);
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => isLoading = true);
-
     final fetchedTasks = await DatabaseHelper.instance.getTasksForGrove(
       widget.grove.id,
     );
@@ -74,18 +101,13 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       widget.grove.id,
     );
 
-    // Υπολογισμός Εξόδων
     double cost = 0.0;
-    for (var t in fetchedTasks) {
-      cost += t.cost;
-    }
+    for (var t in fetchedTasks) cost += t.cost;
 
-    // Υπολογισμός Εσόδων & Λαδιού
-    double oil = 0.0;
-    double revenue = 0.0;
+    double oil = 0.0, revenue = 0.0;
     for (var h in fetchedHarvests) {
       oil += h.oilVolume;
-      revenue += (h.oilVolume * h.pricePerUnit); // Κέρδος = Ποσότητα x Τιμή
+      revenue += (h.oilVolume * h.pricePerUnit);
     }
 
     setState(() {
@@ -98,7 +120,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     });
   }
 
-  // Καιρός 14 Ημερών βάσει συντεταγμένων ΧΩΡΑΦΙΟΥ
+  // --- Καιρός 14 Ημερών ---
   Future<void> _fetchUnifiedGroveWeather() async {
     if (widget.grove.lat == null || widget.grove.lng == null) {
       setState(() => isWeatherLoading = false);
@@ -133,7 +155,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
   }
 
-  // Έξυπνος Αλγόριθμος Πρόβλεψης
+  // --- Έξυπνη Συμβουλή Καιρού ---
   Map<String, dynamic> _getAdvancedFarmingAdvice() {
     if (currentWeatherCode == null ||
         dailyWeatherCodes.isEmpty ||
@@ -144,68 +166,54 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         'msg': 'Δεν υπάρχουν δεδομένα καιρού (Προσθέστε τοποθεσία).',
       };
     }
-
     String formatDate(String dateStr) {
       final parts = dateStr.split('-');
       return '${parts[2]}/${parts[1]}';
     }
 
-    if (windSpeed! > 15.0) {
+    if (windSpeed! > 15.0)
       return {
         'icon': Icons.air,
         'color': Colors.orange,
         'msg':
             'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Απαγορευτικό για ψεκασμό!',
       };
-    }
-
-    if (currentWeatherCode! >= 51) {
+    if (currentWeatherCode! >= 51)
       return {
         'icon': Icons.umbrella,
         'color': Colors.blue,
         'msg': 'Κακοκαιρία σήμερα. Αποφύγετε τις εργασίες στο χωράφι.',
       };
-    }
 
-    int? upcomingBadWeatherIndex;
-    int? upcomingFrostIndex;
-
+    int? upcomingBadWeatherIndex, upcomingFrostIndex;
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
         upcomingFrostIndex = i;
-      }
-      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
+      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null)
         upcomingBadWeatherIndex = i;
-      }
     }
-
-    if (upcomingFrostIndex != null) {
+    if (upcomingFrostIndex != null)
       return {
         'icon': Icons.ac_unit,
         'color': Colors.blueGrey,
         'msg':
             'Κίνδυνος παγετού στις ${formatDate(dailyDates[upcomingFrostIndex])}. Αποφύγετε τα κλαδέματα.',
       };
-    }
-
     if (upcomingBadWeatherIndex != null) {
-      if (upcomingBadWeatherIndex == 1) {
+      if (upcomingBadWeatherIndex == 1)
         return {
           'icon': Icons.warning_amber,
           'color': Colors.orange[700],
           'msg':
               'Αύριο αναμένεται κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
         };
-      } else {
-        return {
-          'icon': Icons.grass,
-          'color': Colors.green[800],
-          'msg':
-              'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα.',
-        };
-      }
+      return {
+        'icon': Icons.grass,
+        'color': Colors.green[800],
+        'msg':
+            'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα.',
+      };
     }
-
     return {
       'icon': Icons.wb_sunny,
       'color': Colors.green,
@@ -233,11 +241,10 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       'https://www.google.com/maps/dir/?api=1&destination=${widget.grove.lat},${widget.grove.lng}',
     );
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Αδυναμία ανοίγματος χάρτη.')),
         );
-      }
     }
   }
 
@@ -321,7 +328,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // --- ΤΟΠΙΚΟΣ ΚΑΙΡΟΣ ΓΙΑ ΤΟ ΣΥΓΚΕΚΡΙΜΕΝΟ ΧΩΡΑΦΙ ---
+                // --- 1. ΤΟΠΙΚΟΣ ΚΑΙΡΟΣ & ΣΥΜΒΟΥΛΗ ---
                 if (widget.grove.lat != null &&
                     !isWeatherLoading &&
                     dailyDates.isNotEmpty)
@@ -427,7 +434,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '$currentTemp°C',
+                                  '${currentTemp}°C',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -439,7 +446,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                             Expanded(
                               child: Text(
                                 advancedAdvice['msg'],
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.black87,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
@@ -451,6 +458,105 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         ),
                       ),
                     ],
+                  ),
+
+                // --- 2. ΝΕΟ: ΕΜΦΑΝΙΣΗ ΧΑΡΤΗ ΜΕ ΣΥΝΟΡΑ (POLYGON) ---
+                if (mapCenter != null)
+                  Container(
+                    height:
+                        160, // Συμπαγές μέγεθος για να μην πιάνει όλη την οθόνη
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.shade300,
+                        width: 2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: Stack(
+                      children: [
+                        FlutterMap(
+                          options: MapOptions(
+                            initialCenter: mapCenter!,
+                            initialZoom: 16.5,
+                            interactionOptions: const InteractionOptions(
+                              flags:
+                                  InteractiveFlag.all &
+                                  ~InteractiveFlag
+                                      .rotate, // Κλειδώνουμε την περιστροφή
+                            ),
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.example.olive_manager',
+                            ),
+                            if (polygonPoints.isNotEmpty)
+                              PolygonLayer(
+                                polygons: [
+                                  Polygon(
+                                    points: polygonPoints,
+                                    color: Colors.green.withOpacity(0.4),
+                                    borderColor: Colors.green[900]!,
+                                    borderStrokeWidth: 3,
+                                    // isFilled: true,
+                                  ),
+                                ],
+                              ),
+                            if (polygonPoints
+                                .isEmpty) // Αν έχει μόνο απλό στίγμα (όχι πολύγωνο)
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: mapCenter!,
+                                    width: 40,
+                                    height: 40,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        // Κουμπί Πλοήγησης (Google Maps) που επιπλέει πάνω στον χάρτη μας
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: FloatingActionButton.extended(
+                            heroTag: 'nav_btn',
+                            backgroundColor: Colors.blue[700],
+                            icon: const Icon(
+                              Icons.directions,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              'Πλοήγηση',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            onPressed: _navigateToMap,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                 if (widget.grove.lat == null)
@@ -468,7 +574,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Προσθέστε τοποθεσία στο χωράφι (από το εικονίδιο επεξεργασίας πάνω δεξιά) για να λαμβάνετε προγνώσεις καιρού.',
+                            'Προσθέστε τοποθεσία στο χωράφι (εικονίδιο επεξεργασίας) για να βλέπετε τον χάρτη και τον καιρό.',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
@@ -476,11 +582,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ),
                   ),
 
-                // --- ΝΕΟ ΟΙΚΟΝΟΜΙΚΟ DASHBOARD (ΑΝΑ ΧΩΡΑΦΙ) ---
+                // --- 3. ΟΙΚΟΝΟΜΙΚΟ DASHBOARD ---
                 Container(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 4,
+                    vertical: 8,
                   ),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -557,191 +663,149 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                   ),
                 ),
 
-                // --- TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ) ---
+                // --- 4. TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ) ---
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      // ---- ΚΑΡΤΕΛΑ 1: ΕΡΓΑΣΙΕΣ ----
-                      Column(
-                        children: [
-                          if (widget.grove.lat != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 8.0,
+                      // ΚΑΡΤΕΛΑ 1: ΕΡΓΑΣΙΕΣ
+                      ListView.builder(
+                        itemCount: tasks.length,
+                        itemBuilder: (context, index) {
+                          final task = tasks[index];
+                          return Dismissible(
+                            key: Key(task.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
                               ),
-                              child: ElevatedButton.icon(
-                                onPressed: _navigateToMap,
-                                icon: const Icon(
-                                  Icons.navigation,
-                                  color: Colors.white,
-                                  size: 20,
+                            ),
+                            onDismissed: (direction) async {
+                              await DatabaseHelper.instance.deleteTask(task.id);
+                              _loadData();
+                            },
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.agriculture,
+                                  color: Colors.green,
                                 ),
-                                label: const Text(
-                                  'Πλοήγηση στο Χωράφι',
-                                  style: TextStyle(color: Colors.white),
+                                title: Text(
+                                  task.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue[700],
-                                  minimumSize: const Size(double.infinity, 36),
+                                subtitle: Text(
+                                  '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                isThreeLine: true,
+                                trailing: Text(
+                                  '${task.cost.toStringAsFixed(2)} €',
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ),
                             ),
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: tasks.length,
-                              itemBuilder: (context, index) {
-                                final task = tasks[index];
-                                return Dismissible(
-                                  key: Key(task.id),
-                                  direction: DismissDirection.endToStart,
-                                  background: Container(
-                                    color: Colors.red,
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    child: const Icon(
-                                      Icons.delete,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  onDismissed: (direction) async {
-                                    await DatabaseHelper.instance.deleteTask(
-                                      task.id,
-                                    );
-                                    _loadData();
-                                  },
-                                  child: Card(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 4,
-                                    ),
-                                    child: ListTile(
-                                      leading: const Icon(
-                                        Icons.agriculture,
-                                        color: Colors.green,
-                                      ),
-                                      title: Text(
-                                        task.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      isThreeLine: true,
-                                      trailing: Text(
-                                        '${task.cost.toStringAsFixed(2)} €',
-                                        style: const TextStyle(
-                                          color: Colors.redAccent,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
 
-                      // ---- ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ ----
-                      Column(
-                        children: [
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: harvests.length,
-                              itemBuilder: (context, index) {
-                                final harvest = harvests[index];
-                                return Dismissible(
-                                  key: Key(harvest.id),
-                                  direction: DismissDirection.endToStart,
-                                  background: Container(
-                                    color: Colors.red,
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    child: const Icon(
-                                      Icons.delete,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  onDismissed: (direction) async {
-                                    await DatabaseHelper.instance.deleteHarvest(
-                                      harvest.id,
-                                    );
-                                    _loadData();
-                                  },
-                                  child: Card(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 4,
-                                    ),
-                                    child: ListTile(
-                                      leading: const Icon(
-                                        Icons.water_drop,
-                                        color: Colors.amber,
-                                      ),
-                                      title: Text(
-                                        '${harvest.oilVolume} L λαδιού στα ${harvest.pricePerUnit} €/L',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Από ${harvest.olivesWeight} kg • Οξύτητα: ${harvest.acidity}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Έσοδα: ${(harvest.oilVolume * harvest.pricePerUnit).toStringAsFixed(2)} €',
-                                            style: const TextStyle(
-                                              color: Colors.green,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      isThreeLine: true,
-                                      // ΝΕΟ: Κουμπί επεξεργασίας Συγκομιδής!
-                                      trailing: IconButton(
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          size: 20,
-                                          color: Colors.blue,
-                                        ),
-                                        onPressed: () async {
-                                          final result = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  AddHarvestScreen(
-                                                    groveId: widget.grove.id,
-                                                    existingHarvest: harvest,
-                                                  ),
-                                            ),
-                                          );
-                                          if (result == true) _loadData();
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
+                      // ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ
+                      ListView.builder(
+                        itemCount: harvests.length,
+                        itemBuilder: (context, index) {
+                          final harvest = harvests[index];
+                          return Dismissible(
+                            key: Key(harvest.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ],
+                            onDismissed: (direction) async {
+                              await DatabaseHelper.instance.deleteHarvest(
+                                harvest.id,
+                              );
+                              _loadData();
+                            },
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.water_drop,
+                                  color: Colors.amber,
+                                ),
+                                title: Text(
+                                  '${harvest.oilVolume} L @ ${harvest.pricePerUnit} €/L',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Από ${harvest.olivesWeight} kg • Οξύτητα: ${harvest.acidity}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    Text(
+                                      'Έσοδα: ${(harvest.oilVolume * harvest.pricePerUnit).toStringAsFixed(2)} €',
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                isThreeLine: true,
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => AddHarvestScreen(
+                                          groveId: widget.grove.id,
+                                          existingHarvest: harvest,
+                                        ),
+                                      ),
+                                    );
+                                    if (result == true) _loadData();
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

@@ -47,7 +47,8 @@ class DatabaseHelper {
       name TEXT NOT NULL,
       area REAL NOT NULL,
       lat REAL,
-      lng REAL
+      lng REAL,
+      boundaries TEXT
     )
     ''');
 
