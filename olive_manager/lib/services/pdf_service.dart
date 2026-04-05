@@ -29,7 +29,9 @@ class PdfService {
         where: 'groveId = ?',
         whereArgs: [groveId],
       );
-      for (var t in tasks) cost += (t['cost'] as num).toDouble();
+      for (var t in tasks) {
+        cost += (t['cost'] as num).toDouble();
+      }
 
       double oil = 0.0;
       double revenue = 0.0;

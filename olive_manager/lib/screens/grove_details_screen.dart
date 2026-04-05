@@ -102,7 +102,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     );
 
     double cost = 0.0;
-    for (var t in fetchedTasks) cost += t.cost;
+    for (var t in fetchedTasks) {
+      cost += t.cost;
+    }
 
     double oil = 0.0, revenue = 0.0;
     for (var h in fetchedHarvests) {
@@ -171,42 +173,48 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       return '${parts[2]}/${parts[1]}';
     }
 
-    if (windSpeed! > 15.0)
+    if (windSpeed! > 15.0) {
       return {
         'icon': Icons.air,
         'color': Colors.orange,
         'msg':
             'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Απαγορευτικό για ψεκασμό!',
       };
-    if (currentWeatherCode! >= 51)
+    }
+    if (currentWeatherCode! >= 51) {
       return {
         'icon': Icons.umbrella,
         'color': Colors.blue,
         'msg': 'Κακοκαιρία σήμερα. Αποφύγετε τις εργασίες στο χωράφι.',
       };
+    }
 
     int? upcomingBadWeatherIndex, upcomingFrostIndex;
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
         upcomingFrostIndex = i;
-      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null)
+      }
+      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
         upcomingBadWeatherIndex = i;
+      }
     }
-    if (upcomingFrostIndex != null)
+    if (upcomingFrostIndex != null) {
       return {
         'icon': Icons.ac_unit,
         'color': Colors.blueGrey,
         'msg':
             'Κίνδυνος παγετού στις ${formatDate(dailyDates[upcomingFrostIndex])}. Αποφύγετε τα κλαδέματα.',
       };
+    }
     if (upcomingBadWeatherIndex != null) {
-      if (upcomingBadWeatherIndex == 1)
+      if (upcomingBadWeatherIndex == 1) {
         return {
           'icon': Icons.warning_amber,
           'color': Colors.orange[700],
           'msg':
               'Αύριο αναμένεται κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
         };
+      }
       return {
         'icon': Icons.grass,
         'color': Colors.green[800],
@@ -241,10 +249,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       'https://www.google.com/maps/dir/?api=1&destination=${widget.grove.lat},${widget.grove.lng}',
     );
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Αδυναμία ανοίγματος χάρτη.')),
         );
+      }
     }
   }
 
@@ -434,7 +443,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${currentTemp}°C',
+                                  '$currentTemp°C',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,

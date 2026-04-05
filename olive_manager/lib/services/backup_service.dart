@@ -15,12 +15,14 @@ class BackupService {
   static Future<bool> _requestStoragePermission() async {
     if (Platform.isAndroid) {
       var manageStatus = await Permission.manageExternalStorage.status;
-      if (!manageStatus.isGranted)
+      if (!manageStatus.isGranted) {
         manageStatus = await Permission.manageExternalStorage.request();
+      }
 
       var storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted)
+      if (!storageStatus.isGranted) {
         storageStatus = await Permission.storage.request();
+      }
 
       return manageStatus.isGranted || storageStatus.isGranted;
     }
@@ -194,7 +196,9 @@ class BackupService {
           where: 'groveId = ?',
           whereArgs: [groveId],
         );
-        for (var t in groveTasks) totalCost += (t['cost'] as num).toDouble();
+        for (var t in groveTasks) {
+          totalCost += (t['cost'] as num).toDouble();
+        }
 
         double totalOil = 0.0, totalOlives = 0.0, totalRevenue = 0.0;
         final groveHarvests = await db.query(

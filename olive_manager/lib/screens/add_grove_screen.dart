@@ -27,6 +27,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   final MapController _mapController = MapController();
   bool _isLocating = false;
 
+  // ΝΕΟ: Μεταβλητή για να αποθηκεύουμε την ακριβή θέση του χρήστη
+  LatLng? _currentLocation;
+
   @override
   void initState() {
     super.initState();
@@ -56,24 +59,22 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
       area += (lng2 - lng1) * (2 + math.sin(lat1) + math.sin(lat2));
     }
     area = (area * earthRadius * earthRadius / 2.0).abs();
-    return area / 1000.0; // Μετατροπή τ.μ. σε Στρέμματα
+    return area / 1000.0;
   }
 
-  // --- ΖΩΝΤΑΝΗ ΕΝΗΜΕΡΩΣΗ ΣΤΡΕΜΜΑΤΩΝ ---
   void _updateAreaLive() {
     double calcArea = _calculatePolygonAreaInStremmata(_selectedBoundaries);
     if (calcArea > 0) {
       _areaController.text = calcArea.toStringAsFixed(2);
     } else if (_selectedBoundaries.isEmpty) {
-      _areaController.text = ''; // Καθαρίζει αν σβήσουμε όλα τα σημεία
+      _areaController.text = '';
     }
   }
 
-  // --- ΛΕΙΤΟΥΡΓΙΕΣ ΧΑΡΤΗ ---
   void _handleTap(TapPosition tapPosition, LatLng latlng) {
     setState(() {
       _selectedBoundaries.add(latlng);
-      _updateAreaLive(); // Υπολογισμός με κάθε νέο πάτημα!
+      _updateAreaLive();
     });
   }
 
@@ -116,7 +117,14 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     setState(() => _isLocating = true);
     try {
       Position position = await _getGpsPosition();
-      _mapController.move(LatLng(position.latitude, position.longitude), 17.5);
+      LatLng pos = LatLng(position.latitude, position.longitude);
+
+      setState(() {
+        _currentLocation =
+            pos; // Αποθηκεύουμε τη θέση για να φανεί το μπλε στίγμα
+      });
+
+      _mapController.move(pos, 17.5);
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -131,8 +139,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
       LatLng currentPos = LatLng(position.latitude, position.longitude);
 
       setState(() {
+        _currentLocation = currentPos; // Δείχνουμε το μπλε στίγμα και εδώ!
         _selectedBoundaries.add(currentPos);
-        _updateAreaLive(); // Αυτόματος υπολογισμός και εδώ!
+        _updateAreaLive();
         _mapController.move(currentPos, 17.5);
       });
     } catch (e) {
@@ -201,13 +210,11 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         ),
         backgroundColor: Colors.green[700],
       ),
-      // Χρησιμοποιούμε ListView για να μπορεί να κάνει scroll η φόρμα
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // 1. ΟΝΟΜΑ ΧΩΡΑΦΙΟΥ
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -219,7 +226,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. ΣΤΡΕΜΜΑΤΑ
             TextFormField(
               controller: _areaController,
               decoration: InputDecoration(
@@ -243,7 +249,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 3. ΕΝΣΩΜΑΤΩΜΕΝΟΣ ΧΑΡΤΗΣ
             const Text(
               'Σχεδιασμός Συνόρων (Προαιρετικό)',
               style: TextStyle(
@@ -254,7 +259,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             ),
             const SizedBox(height: 8),
             Container(
-              height: 380, // Αρκετό ύψος για να σχεδιάσει άνετα
+              height: 380,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
@@ -270,7 +275,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
               clipBehavior: Clip.hardEdge,
               child: Stack(
                 children: [
-                  // Το Layer του χάρτη
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
@@ -294,31 +298,57 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                               color: Colors.green.withOpacity(0.4),
                               borderColor: Colors.green[900]!,
                               borderStrokeWidth: 3.0,
-                              //isFilled: true,
+                              //     isFilled: true,
                             ),
                           ],
                         ),
+                      // --- ΕΝΗΜΕΡΩΜΕΝΟ MARKER LAYER ---
                       MarkerLayer(
-                        markers: _selectedBoundaries
-                            .map(
-                              (point) => Marker(
-                                point: point,
-                                width: 12,
-                                height: 12,
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
+                        markers: [
+                          // 1. Οι κόκκινες πινέζες των συνόρων
+                          ..._selectedBoundaries.map(
+                            (point) => Marker(
+                              point: point,
+                              width: 12,
+                              height: 12,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
                                 ),
                               ),
-                            )
-                            .toList(),
+                            ),
+                          ),
+
+                          // 2. ΝΕΟ: Το Μπλε Στίγμα της τοποθεσίας του χρήστη (Μπαίνει τελευταίο για να είναι από πάνω)
+                          if (_currentLocation != null)
+                            Marker(
+                              point: _currentLocation!,
+                              width: 24,
+                              height: 24,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
 
-                  // Κουμπιά Επεξεργασίας (Πάνω Δεξιά)
                   Positioned(
                     top: 8,
                     right: 8,
@@ -346,7 +376,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     ),
                   ),
 
-                  // Κουμπιά GPS (Κάτω Δεξιά)
                   Positioned(
                     bottom: 8,
                     right: 8,
@@ -397,7 +426,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     ),
                   ),
 
-                  // Ενημερωτικό Banner (Κάτω Αριστερά)
                   if (_selectedBoundaries.isEmpty)
                     Positioned(
                       bottom: 8,
@@ -423,7 +451,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
 
             const SizedBox(height: 32),
 
-            // 4. ΚΟΥΜΠΙ ΑΠΟΘΗΚΕΥΣΗΣ
             ElevatedButton(
               onPressed: _saveGrove,
               style: ElevatedButton.styleFrom(
