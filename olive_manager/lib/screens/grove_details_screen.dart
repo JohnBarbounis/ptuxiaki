@@ -76,7 +76,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
 
     // Υπολογισμός Εξόδων
     double cost = 0.0;
-    for (var t in fetchedTasks) cost += t.cost;
+    for (var t in fetchedTasks) {
+      cost += t.cost;
+    }
 
     // Υπολογισμός Εσόδων & Λαδιού
     double oil = 0.0;
@@ -169,10 +171,12 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     int? upcomingFrostIndex;
 
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
         upcomingFrostIndex = i;
-      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null)
+      }
+      if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
         upcomingBadWeatherIndex = i;
+      }
     }
 
     if (upcomingFrostIndex != null) {
@@ -229,10 +233,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       'https://www.google.com/maps/dir/?api=1&destination=${widget.grove.lat},${widget.grove.lng}',
     );
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Αδυναμία ανοίγματος χάρτη.')),
         );
+      }
     }
   }
 
@@ -422,7 +427,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${currentTemp}°C',
+                                  '$currentTemp°C',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,

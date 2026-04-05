@@ -56,8 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (serviceEnabled) {
         LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied)
+        if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
+        }
         if (permission == LocationPermission.always ||
             permission == LocationPermission.whileInUse) {
           Position position = await Geolocator.getCurrentPosition(
@@ -165,12 +166,14 @@ class _HomeScreenState extends State<HomeScreen> {
     // Ξεκινάμε από το index 1 (Αύριο) έως το 7
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
       // Ψάχνουμε τον πρώτο Παγετό (< 2°C)
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null)
+      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
         upcomingFrostIndex = i;
+      }
 
       // Ψάχνουμε την πρώτη μέρα με Βροχή/Καταιγίδα (>= 51)
-      if (dailyWeatherCodes[i] >= 51 && upcomingRainIndex == null)
+      if (dailyWeatherCodes[i] >= 51 && upcomingRainIndex == null) {
         upcomingRainIndex = i;
+      }
 
       // Ψάχνουμε τον πρώτο Καύσωνα (> 35°C) - Απαιτεί να έχεις τη λίστα dailyMaxTemps
       if (dailyMaxTemps.isNotEmpty &&
@@ -286,8 +289,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         firstDate: DateTime(2000),
                         lastDate: DateTime.now(),
                       );
-                      if (picked != null)
+                      if (picked != null) {
                         setDialogState(() => tempStart = picked);
+                      }
                     },
                   ),
                   ListTile(
@@ -302,8 +306,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         firstDate: DateTime(2000),
                         lastDate: DateTime.now(),
                       );
-                      if (picked != null)
+                      if (picked != null) {
                         setDialogState(() => tempEnd = picked);
+                      }
                     },
                   ),
                 ],
@@ -819,9 +824,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                             onChanged: (value) async {
-                              if (value == 'custom')
+                              if (value == 'custom') {
                                 await _pickCustomDateRange();
-                              else if (value != null) {
+                              } else if (value != null) {
                                 setState(() {
                                   _selectedFilter = value;
                                   _customDateRange = null;

@@ -1,12 +1,15 @@
 import 'dart:io';
+import 'dart:convert'; // ΝΕΟ: Για την αποκωδικοποίηση της τοποθεσίας
+import 'package:http/http.dart'
+    as http; // ΝΕΟ: Για να καλούμε το API τοποθεσίας
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:excel/excel.dart'; // ΝΕΟ: Για το Excel
-import 'package:path_provider/path_provider.dart'; // ΝΕΟ: Για προσωρινούς φακέλους
-import '../services/database_helper.dart'; // ΝΕΟ: Για να διαβάζουμε τα δεδομένα
+import 'package:excel/excel.dart';
+import 'package:path_provider/path_provider.dart';
+import '../services/database_helper.dart';
 
 class BackupService {
   static Future<bool> _requestStoragePermission() async {
@@ -85,47 +88,106 @@ class BackupService {
     return false;
   }
 
-  // --- 4. ΕΞΑΓΩΓΗ ΣΕ EXCEL (.xlsx) ΜΕ ΠΛΗΡΗ ΣΤΑΤΙΣΤΙΚΑ ---
+  // --- 4. ΕΞΑΓΩΓΗ ΣΕ EXCEL ΜΕ ΕΞΥΠΝΗ ΤΟΠΟΘΕΣΙΑ ---
   static Future<bool> exportToExcel() async {
     try {
-      // 1. Δημιουργία εικονικού Excel
       var excel = Excel.createExcel();
       final db = await DatabaseHelper.instance.database;
 
-      // 2. Ανάκτηση δεδομένων
       final groves = await db.query('groves');
       final tasks = await db.query('tasks');
       final harvests = await db.query('harvests');
 
+      // --- STYLING ---
+      CellStyle headerStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#2E7D32'),
+        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+        horizontalAlign: HorizontalAlign.Center,
+      );
+
+      CellStyle totalStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#E0E0E0'),
+      );
+
       // ==========================================
-      // ΦΥΛΛΟ 1: ΣΥΓΚΕΝΤΡΩΤΙΚΑ ΧΩΡΑΦΙΩΝ (Πλήρης Αναφορά)
+      // ΦΥΛΛΟ 1: ΣΥΓΚΕΝΤΡΩΤΙΚΑ ΧΩΡΑΦΙΩΝ
       // ==========================================
       excel.rename('Sheet1', 'Χωράφια - Στατιστικά');
       Sheet sheetGroves = excel['Χωράφια - Στατιστικά'];
 
-      // Οι επικεφαλίδες του αγρότη
-      sheetGroves.appendRow([
-        TextCellValue('Όνομα Χωραφιού'),
-        TextCellValue('Στρέμματα'),
-        TextCellValue('Τοποθεσία'),
-        TextCellValue('Συνολικά Έξοδα (€)'),
-        TextCellValue('Συνολικά Έσοδα (€)'),
-        TextCellValue('Καθαρό Κέρδος (€)'),
-        TextCellValue('Συνολικά Λίτρα Λαδιού'),
-        TextCellValue('Συνολικά Κιλά Ελιάς'),
-        TextCellValue('Απόδοση (Λίτρα ανά Στρέμμα)'),
-      ]);
+      List<String> groveHeaders = [
+        'Όνομα Χωραφιού',
+        'Στρέμματα',
+        'Περιοχή / Τοποθεσία',
+        'Συνολικά Έξοδα (€)',
+        'Συνολικά Έσοδα (€)',
+        'Καθαρό Κέρδος (€)',
+        'Λίτρα Λαδιού',
+        'Κιλά Ελιάς',
+        'Απόδοση (L/Στρέμμα)',
+      ];
 
-      // Υπολογισμός στατιστικών για ΚΑΘΕ χωράφι ξεχωριστά
+      sheetGroves.appendRow(groveHeaders.map((h) => TextCellValue(h)).toList());
+
+      for (int i = 0; i < groveHeaders.length; i++) {
+        sheetGroves
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetGroves.setColumnWidth(
+          i,
+          22.0,
+        ); // Λίγο μεγαλύτερο πλάτος για το όνομα της περιοχής
+      }
+
+      double sumExpenses = 0, sumRevenue = 0, sumProfit = 0, sumOil = 0;
+      int currentRow = 1;
+
       for (var g in groves) {
         String groveId = g['id'].toString();
         String name = g['name'].toString();
         double area = (g['area'] as num).toDouble();
-        String location = (g['lat'] != null && g['lng'] != null)
-            ? '${g['lat']}, ${g['lng']}'
-            : 'Μη διαθέσιμη';
 
-        // Α. Έξοδα Χωραφιού
+        // --- ΝΕΑ ΛΟΓΙΚΗ: REVERSE GEOCODING ---
+        String locationStr = 'Μη διαθέσιμη';
+        if (g['lat'] != null && g['lng'] != null) {
+          double lat = (g['lat'] as num).toDouble();
+          double lng = (g['lng'] as num).toDouble();
+
+          try {
+            // Ρωτάμε το API για το όνομα της περιοχής (με Timeout 3 δευτερολέπτων για να μην κολλήσει το Excel αν δεν έχουμε ίντερνετ)
+            final geoUrl = Uri.parse(
+              'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lng&localityLanguage=el',
+            );
+            final geoResponse = await http
+                .get(geoUrl)
+                .timeout(const Duration(seconds: 3));
+
+            if (geoResponse.statusCode == 200) {
+              final geoData = json.decode(geoResponse.body);
+              String city = geoData['city'] ?? geoData['locality'] ?? '';
+
+              if (city.isNotEmpty) {
+                // Φτιάχνουμε ένα όμορφο string: π.χ. "Ηράκλειο (35.33, 25.14)"
+                locationStr =
+                    '$city (${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)})';
+              } else {
+                locationStr =
+                    '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+              }
+            } else {
+              locationStr =
+                  '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+            }
+          } catch (e) {
+            // Αν δεν έχουμε ίντερνετ, απλά βάζουμε τις συντεταγμένες
+            locationStr =
+                '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+          }
+        }
+
         double totalCost = 0.0;
         final groveTasks = await db.query(
           'tasks',
@@ -134,10 +196,7 @@ class BackupService {
         );
         for (var t in groveTasks) totalCost += (t['cost'] as num).toDouble();
 
-        // Β. Έσοδα και Παραγωγή Χωραφιού
-        double totalOil = 0.0;
-        double totalOlives = 0.0;
-        double totalRevenue = 0.0;
+        double totalOil = 0.0, totalOlives = 0.0, totalRevenue = 0.0;
         final groveHarvests = await db.query(
           'harvests',
           where: 'groveId = ?',
@@ -151,63 +210,101 @@ class BackupService {
           totalRevenue += (oil * price);
         }
 
-        // Γ. Δείκτες (Κέρδος & Απόδοση)
         double netProfit = totalRevenue - totalCost;
         double yieldPerStremma = area > 0 ? (totalOil / area) : 0.0;
 
-        // Εγγραφή της γραμμής στο Excel
+        sumExpenses += totalCost;
+        sumRevenue += totalRevenue;
+        sumProfit += netProfit;
+        sumOil += totalOil;
+
         sheetGroves.appendRow([
           TextCellValue(name),
           DoubleCellValue(area),
-          TextCellValue(location),
+          TextCellValue(locationStr), // Μπαίνει το νέο έξυπνο string!
           DoubleCellValue(totalCost),
           DoubleCellValue(totalRevenue),
           DoubleCellValue(netProfit),
           DoubleCellValue(totalOil),
           DoubleCellValue(totalOlives),
-          DoubleCellValue(
-            double.parse(yieldPerStremma.toStringAsFixed(2)),
-          ), // Στρογγυλοποίηση στα 2 δεκαδικά
+          DoubleCellValue(double.parse(yieldPerStremma.toStringAsFixed(2))),
         ]);
+        currentRow++;
+      }
+
+      // --- ΓΡΑΜΜΗ ΣΥΝΟΛΩΝ ---
+      sheetGroves.appendRow([
+        TextCellValue('ΓΕΝΙΚΑ ΣΥΝΟΛΑ:'),
+        TextCellValue(''),
+        TextCellValue(''),
+        DoubleCellValue(sumExpenses),
+        DoubleCellValue(sumRevenue),
+        DoubleCellValue(sumProfit),
+        DoubleCellValue(sumOil),
+        TextCellValue(''),
+        TextCellValue(''),
+      ]);
+
+      for (int i = 0; i < groveHeaders.length; i++) {
+        sheetGroves
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: i,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            totalStyle;
       }
 
       // ==========================================
-      // ΦΥΛΛΟ 2: ΑΝΑΛΥΤΙΚΕΣ ΕΡΓΑΣΙΕΣ
+      // ΦΥΛΛΟ 2 & 3: Ιστορικό Εργασιών & Συγκομιδών
       // ==========================================
       Sheet sheetTasks = excel['Ιστορικό Εργασιών'];
-      sheetTasks.appendRow([
-        TextCellValue('ID Χωραφιού'),
-        TextCellValue('Τίτλος Εργασίας'),
-        TextCellValue('Τύπος'),
-        TextCellValue('Ημερομηνία'),
-        TextCellValue('Κόστος (€)'),
-      ]);
-
+      List<String> taskHeaders = [
+        'ID Χωραφιού',
+        'Τίτλος Εργασίας',
+        'Τύπος',
+        'Ημερομηνία',
+        'Κόστος (€)',
+      ];
+      sheetTasks.appendRow(taskHeaders.map((h) => TextCellValue(h)).toList());
+      for (int i = 0; i < taskHeaders.length; i++) {
+        sheetTasks
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetTasks.setColumnWidth(i, 18.0);
+      }
       for (var t in tasks) {
         sheetTasks.appendRow([
           TextCellValue(t['groveId'].toString()),
           TextCellValue(t['title'].toString()),
           TextCellValue(t['type'].toString()),
-          TextCellValue(
-            t['date'].toString().split('T')[0],
-          ), // Κρατάμε μόνο την ημερομηνία (π.χ. 2024-05-12)
+          TextCellValue(t['date'].toString().split('T')[0]),
           DoubleCellValue(t['cost'] as double),
         ]);
       }
 
-      // ==========================================
-      // ΦΥΛΛΟ 3: ΑΝΑΛΥΤΙΚΕΣ ΣΥΓΚΟΜΙΔΕΣ
-      // ==========================================
       Sheet sheetHarvests = excel['Ιστορικό Συγκομιδών'];
-      sheetHarvests.appendRow([
-        TextCellValue('ID Χωραφιού'),
-        TextCellValue('Ημερομηνία'),
-        TextCellValue('Λίτρα Λαδιού'),
-        TextCellValue('Κιλά Ελιάς'),
-        TextCellValue('Οξύτητα'),
-        TextCellValue('Τιμή Πώλησης (€/L)'),
-      ]);
-
+      List<String> harvestHeaders = [
+        'ID Χωραφιού',
+        'Ημερομηνία',
+        'Λίτρα Λαδιού',
+        'Κιλά Ελιάς',
+        'Οξύτητα',
+        'Τιμή Πώλησης (€/L)',
+      ];
+      sheetHarvests.appendRow(
+        harvestHeaders.map((h) => TextCellValue(h)).toList(),
+      );
+      for (int i = 0; i < harvestHeaders.length; i++) {
+        sheetHarvests
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetHarvests.setColumnWidth(i, 18.0);
+      }
       for (var h in harvests) {
         sheetHarvests.appendRow([
           TextCellValue(h['groveId'].toString()),
@@ -219,7 +316,7 @@ class BackupService {
         ]);
       }
 
-      // 3. Αποθήκευση και Κοινοποίηση
+      // Αποθήκευση και Κοινοποίηση
       var fileBytes = excel.save();
       final directory = await getTemporaryDirectory();
       final path = join(
