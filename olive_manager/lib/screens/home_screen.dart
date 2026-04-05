@@ -416,11 +416,66 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-            onPressed: () async {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Δημιουργία PDF...')),
+            tooltip: 'Αναφορά PDF',
+            onPressed: () {
+              // ΝΕΟ: Ανοίγει μενού επιλογών για το PDF
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                builder: (context) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Επιλογές Αναφοράς PDF',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.share,
+                          color: Colors.blue,
+                          size: 28,
+                        ),
+                        title: const Text('Αποστολή / Αποθήκευση'),
+                        subtitle: const Text(
+                          'Μέσω Gmail, Google Drive, Viber κ.α.',
+                        ),
+                        onTap: () async {
+                          Navigator.pop(context); // Κλείσιμο μενού
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Προετοιμασία αρχείου...'),
+                            ),
+                          );
+                          await PdfService.shareReport(); // Καλεί τη ΝΕΑ συνάρτηση
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.print,
+                          color: Colors.green,
+                          size: 28,
+                        ),
+                        title: const Text('Προβολή / Εκτύπωση'),
+                        subtitle: const Text('Άνοιγμα του εγγράφου στην οθόνη'),
+                        onTap: () async {
+                          Navigator.pop(context); // Κλείσιμο μενού
+                          await PdfService.printReport(); // Καλεί την παλιά συνάρτηση
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
               );
-              await PdfService.generateAndShareReport(0.0);
             },
           ),
         ],

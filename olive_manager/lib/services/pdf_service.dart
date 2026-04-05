@@ -1,153 +1,250 @@
-import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'database_helper.dart';
+import '../services/database_helper.dart';
 
 class PdfService {
-  static Future<void> generateAndShareReport(double oilPrice) async {
+  // 1. ΙΔΙΩΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Χτίζει το έγγραφο (Κεντρική Λογική)
+  static Future<pw.Document> _buildPdfDocument() async {
     final pdf = pw.Document();
+    final font = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
 
-    final greekFont = await PdfGoogleFonts.robotoRegular();
-    final greekFontBold = await PdfGoogleFonts.robotoBold();
+    final db = await DatabaseHelper.instance.database;
+    final groves = await db.query('groves');
 
-    final totalExpenses = await DatabaseHelper.instance.getTotalExpenses();
-    final totalOil = await DatabaseHelper.instance.getTotalOilProduction();
-    final groves = await DatabaseHelper.instance.getAllGroves();
+    double globalExpenses = 0.0;
+    double globalRevenue = 0.0;
+    double globalOil = 0.0;
+    List<List<String>> tableData = [];
 
-    // Υπολογισμοί μέσα στο PDF
-    final grossIncome = totalOil * oilPrice;
-    final netProfit = grossIncome - totalExpenses;
+    for (var g in groves) {
+      String groveId = g['id'].toString();
+      String name = g['name'].toString();
+      double area = (g['area'] as num).toDouble();
+
+      double cost = 0.0;
+      final tasks = await db.query(
+        'tasks',
+        where: 'groveId = ?',
+        whereArgs: [groveId],
+      );
+      for (var t in tasks) cost += (t['cost'] as num).toDouble();
+
+      double oil = 0.0;
+      double revenue = 0.0;
+      final harvests = await db.query(
+        'harvests',
+        where: 'groveId = ?',
+        whereArgs: [groveId],
+      );
+      for (var h in harvests) {
+        double currentOil = (h['oilVolume'] as num).toDouble();
+        oil += currentOil;
+        revenue += currentOil * (h['pricePerUnit'] as num).toDouble();
+      }
+
+      double profit = revenue - cost;
+      double yieldPerStremma = area > 0 ? (oil / area) : 0.0;
+
+      globalExpenses += cost;
+      globalRevenue += revenue;
+      globalOil += oil;
+
+      tableData.add([
+        name,
+        '${area.toStringAsFixed(1)} Στρ.',
+        '${cost.toStringAsFixed(2)} €',
+        '${revenue.toStringAsFixed(2)} €',
+        '${profit.toStringAsFixed(2)} €',
+        '${yieldPerStremma.toStringAsFixed(1)} L/Στρ.',
+      ]);
+    }
+
+    double globalProfit = globalRevenue - globalExpenses;
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Center(
-                child: pw.Text(
-                  'Αναφορά Ελαιοπαραγωγής & Εξόδων',
-                  style: pw.TextStyle(font: greekFontBold, fontSize: 24),
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Center(
-                child: pw.Text(
-                  'Ημερομηνία: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                  style: pw.TextStyle(
-                    font: greekFont,
-                    fontSize: 14,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ),
-              pw.SizedBox(height: 30),
-
-              pw.Text(
-                'Οικονομική Σύνοψη',
-                style: pw.TextStyle(
-                  font: greekFontBold,
-                  fontSize: 18,
-                  color: PdfColors.green700,
-                ),
-              ),
-              pw.Divider(),
-              pw.Text(
-                'Συνολική Παραγωγή: ${totalOil.toStringAsFixed(1)} Λίτρα',
-                style: pw.TextStyle(font: greekFont, fontSize: 14),
-              ),
-              pw.Text(
-                'Τιμή Πώλησης Λαδιού: ${oilPrice.toStringAsFixed(2)} ευρώ/Λίτρο',
-                style: pw.TextStyle(font: greekFont, fontSize: 14),
-              ),
-              pw.SizedBox(height: 10),
-
-              pw.Text(
-                'Μικτά Έσοδα (Πώληση): ${grossIncome.toStringAsFixed(2)} ευρώ',
-                style: pw.TextStyle(
-                  font: greekFont,
-                  fontSize: 14,
-                  color: PdfColors.blue700,
-                ),
-              ),
-              pw.Text(
-                'Συνολικά Έξοδα Εργασιών: -${totalExpenses.toStringAsFixed(2)} ευρώ',
-                style: pw.TextStyle(
-                  font: greekFont,
-                  fontSize: 14,
-                  color: PdfColors.red700,
-                ),
-              ),
-              pw.Divider(),
-
-              // Το Καθαρό Κέρδος (με αλλαγή χρώματος αν είναι θετικό/αρνητικό)
-              pw.Text(
-                'Καθαρό Κέρδος: ${netProfit.toStringAsFixed(2)} ευρώ',
-                style: pw.TextStyle(
-                  font: greekFontBold,
-                  fontSize: 16,
-                  color: netProfit >= 0 ? PdfColors.green700 : PdfColors.red700,
-                ),
-              ),
-              pw.SizedBox(height: 30),
-
-              // ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
-              pw.Text(
-                'Τα Χωράφια μου',
-                style: pw.TextStyle(
-                  font: greekFontBold,
-                  fontSize: 18,
-                  color: PdfColors.blue700,
-                ),
-              ),
-              pw.Divider(),
-              if (groves.isEmpty)
-                pw.Text(
-                  'Δεν υπάρχουν καταχωρημένα χωράφια.',
-                  style: pw.TextStyle(font: greekFont, fontSize: 14),
-                )
-              else
-                pw.ListView.builder(
-                  itemCount: groves.length,
-                  itemBuilder: (context, index) {
-                    final grove = groves[index];
-                    return pw.Padding(
-                      padding: const pw.EdgeInsets.only(bottom: 8.0),
-                      child: pw.Text(
-                        '• ${grove.name} (${grove.area} στρέμματα)',
-                        style: pw.TextStyle(font: greekFont, fontSize: 14),
+          return [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'OLIVE MANAGER',
+                      style: pw.TextStyle(
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green800,
                       ),
-                    );
-                  },
+                    ),
+                    pw.Text(
+                      'Σύστημα Διαχείρισης Ελαιοκομίας',
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                  ],
                 ),
-
-              pw.Spacer(),
-              pw.Center(
-                child: pw.Text(
-                  'Δημιουργήθηκε από το Olive Manager App',
-                  style: pw.TextStyle(
-                    font: greekFont,
-                    fontSize: 10,
-                    color: PdfColors.grey,
-                  ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'ΑΝΑΦΟΡΑ ΑΠΟΔΟΣΗΣ',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Ημερομηνία: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                      style: const pw.TextStyle(fontSize: 12),
+                    ),
+                  ],
                 ),
+              ],
+            ),
+            pw.SizedBox(height: 30),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                border: pw.Border.all(color: PdfColors.grey300),
               ),
-            ],
-          );
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                children: [
+                  _buildSummaryItem(
+                    'Συνολικά Έξοδα',
+                    '${globalExpenses.toStringAsFixed(2)} €',
+                    PdfColors.red700,
+                  ),
+                  _buildSummaryItem(
+                    'Συνολικά Έσοδα',
+                    '${globalRevenue.toStringAsFixed(2)} €',
+                    PdfColors.green700,
+                  ),
+                  _buildSummaryItem(
+                    'Καθαρό Κέρδος',
+                    '${globalProfit.toStringAsFixed(2)} €',
+                    globalProfit >= 0 ? PdfColors.blue700 : PdfColors.orange700,
+                  ),
+                  _buildSummaryItem(
+                    'Σύνολο Λαδιού',
+                    '${globalOil.toStringAsFixed(1)} L',
+                    PdfColors.black,
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 30),
+            pw.Text(
+              'Αναλυτικά Στοιχεία ανά Χωράφι',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 10),
+            pw.TableHelper.fromTextArray(
+              headers: [
+                'Χωράφι',
+                'Στρέμματα',
+                'Έξοδα',
+                'Έσοδα',
+                'Κέρδος',
+                'Απόδοση',
+              ],
+              data: tableData,
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              headerStyle: pw.TextStyle(
+                color: PdfColors.white,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.green700,
+              ),
+              cellHeight: 30,
+              cellAlignments: {
+                0: pw.Alignment.centerLeft,
+                1: pw.Alignment.center,
+                2: pw.Alignment.centerRight,
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+                5: pw.Alignment.center,
+              },
+              oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey50),
+            ),
+          ];
         },
+        footer: (pw.Context context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 10),
+          child: pw.Text(
+            'Σελίδα ${context.pageNumber} από ${context.pagesCount}',
+            style: const pw.TextStyle(color: PdfColors.grey),
+          ),
+        ),
       ),
     );
 
-    final outputDirectory = await getTemporaryDirectory();
-    final file = File('${outputDirectory.path}/Olive_Report.pdf');
-    await file.writeAsBytes(await pdf.save());
+    return pdf;
+  }
 
-    await Share.shareXFiles([
-      XFile(file.path),
-    ], text: 'Σας αποστέλλω την οικονομική αναφορά ελαιοπαραγωγής.');
+  static pw.Widget _buildSummaryItem(
+    String title,
+    String value,
+    PdfColor color,
+  ) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(
+          title,
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // ΛΕΙΤΟΥΡΓΙΑ Α: ΕΚΤΥΠΩΣΗ / ΠΡΟΕΠΙΣΚΟΠΗΣΗ
+  // ==========================================
+  static Future<void> printReport() async {
+    final pdf = await _buildPdfDocument();
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name:
+          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+    );
+  }
+
+  // ==========================================
+  // ΛΕΙΤΟΥΡΓΙΑ Β: ΝΕΟ! ΚΟΙΝΟΠΟΙΗΣΗ (GMAIL, DRIVE)
+  // ==========================================
+  static Future<void> shareReport() async {
+    final pdf = await _buildPdfDocument();
+    final bytes = await pdf.save(); // Μετατροπή σε ψηφιακά δεδομένα
+
+    // Ανοίγει το σύστημα του Android/iOS για Gmail, Drive, Viber κλπ
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename:
+          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+    );
   }
 }
