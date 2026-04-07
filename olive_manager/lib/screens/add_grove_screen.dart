@@ -21,6 +21,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _areaController;
+  late TextEditingController _treeController;
 
   // Μεταβλητές Χάρτη
   List<LatLng> _selectedBoundaries = [];
@@ -39,6 +40,10 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     _areaController = TextEditingController(
       text: widget.existingGrove?.area.toString() ?? '',
     );
+
+    _treeController = TextEditingController(
+      text: widget.existingGrove?.treeCount.toString() ?? '',
+    ); // ΝΕΟ
 
     if (widget.existingGrove != null) {
       _selectedBoundaries = widget.existingGrove!.getPolygon();
@@ -186,6 +191,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         area: double.parse(safeAreaText),
+        treeCount: int.parse(_treeController.text), // ΑΠΟΘΗΚΕΥΣΗ
         lat: centerLat,
         lng: centerLng,
         boundaries: boundariesJson,
@@ -246,6 +252,19 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
               ),
               validator: (value) =>
                   value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _treeController,
+              decoration: const InputDecoration(
+                labelText: 'Αριθμός Ελαιόδεντρων',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.numbers),
+                suffixText: 'Δέντρα',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) =>
+                  value!.isEmpty ? 'Εισάγετε αριθμό δέντρων' : null,
             ),
             const SizedBox(height: 24),
 

@@ -671,6 +671,40 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ],
                   ),
                 ),
+                // Προσθήκη στο UI (π.χ. κάτω από τον χάρτη ή μέσα στο Dashboard)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 4.0,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.park, size: 16, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${widget.grove.treeCount} Δέντρα',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Icon(
+                        Icons.straighten,
+                        size: 16,
+                        color: Colors.blueGrey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${widget.grove.area} Στρέμματα',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
                 // --- 4. TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ) ---
                 Expanded(
