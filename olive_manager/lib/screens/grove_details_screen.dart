@@ -671,6 +671,132 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ],
                   ),
                 ),
+                // --- ΝΕΟ: ΓΕΩΠΟΝΙΚΟ DASHBOARD (ΔΕΙΚΤΕΣ ΔΕΝΤΡΩΝ) ---
+                if (widget.grove.treeCount > 0)
+                  Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors
+                          .green[50], // Ελαφρύ πράσινο φόντο για να ξεχωρίζει ως "Γεωπονικό"
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[200]!, width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Αγρονομικοί Δείκτες',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // 1ος Δείκτης: Πυκνότητα Φύτευσης
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.park,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.grove.area > 0
+                                      ? (widget.grove.treeCount /
+                                                widget.grove.area)
+                                            .toStringAsFixed(1)
+                                      : '0',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const Text(
+                                  'Δέντρα / Στρ.',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 30,
+                              width: 1,
+                              color: Colors.green[200],
+                            ),
+
+                            // 2ος Δείκτης: Λίτρα ανά Δέντρο
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.water_drop,
+                                  color: Colors.amber,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(totalOil / widget.grove.treeCount).toStringAsFixed(1)} L',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const Text(
+                                  'Λάδι / Δέντρο',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 30,
+                              width: 1,
+                              color: Colors.green[200],
+                            ),
+
+                            // 3ος Δείκτης: Κέρδος ανά Δέντρο
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.euro,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${((totalRevenue - totalCost) / widget.grove.treeCount).toStringAsFixed(1)} €',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: (totalRevenue - totalCost) >= 0
+                                        ? Colors.blue[700]
+                                        : Colors.red,
+                                  ),
+                                ),
+                                const Text(
+                                  'Κέρδος / Δέν.',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 // Προσθήκη στο UI (π.χ. κάτω από τον χάρτη ή μέσα στο Dashboard)
                 Padding(
                   padding: const EdgeInsets.symmetric(

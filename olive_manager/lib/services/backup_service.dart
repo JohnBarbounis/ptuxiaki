@@ -122,15 +122,13 @@ class BackupService {
       List<String> groveHeaders = [
         'Όνομα Χωραφιού',
         'Στρέμματα',
-        'Περιοχή / Τοποθεσία',
-        'Συνολικά Έξοδα (€)',
-        'Συνολικά Έσοδα (€)',
-        'Καθαρό Κέρδος (€)',
-        'Λίτρα Λαδιού',
-        'Κιλά Ελιάς',
-        'Απόδοση (L/Στρέμμα)',
+        'Δέντρα',
+        'Περιοχή / Τοποθεσία', // Προστέθηκαν τα "Δέντρα"
+        'Συνολικά Έξοδα (€)', 'Συνολικά Έσοδα (€)', 'Καθαρό Κέρδος (€)',
+        'Λίτρα Λαδιού', 'Κιλά Ελιάς', 'Απόδοση (L/Στρέμμα)',
+        'Απόδοση (L/Δέντρο)',
+        'Κέρδος (€/Δέντρο)', // Προστέθηκαν οι νέοι δείκτες
       ];
-
       sheetGroves.appendRow(groveHeaders.map((h) => TextCellValue(h)).toList());
 
       for (int i = 0; i < groveHeaders.length; i++) {
@@ -217,6 +215,10 @@ class BackupService {
         double netProfit = totalRevenue - totalCost;
         double yieldPerStremma = area > 0 ? (totalOil / area) : 0.0;
 
+        int trees = g['treeCount'] != null ? g['treeCount'] as int : 0;
+        double yieldPerTree = trees > 0 ? (totalOil / trees) : 0.0;
+        double profitPerTree = trees > 0 ? (netProfit / trees) : 0.0;
+
         sumExpenses += totalCost;
         sumRevenue += totalRevenue;
         sumProfit += netProfit;
@@ -225,13 +227,18 @@ class BackupService {
         sheetGroves.appendRow([
           TextCellValue(name),
           DoubleCellValue(area),
-          TextCellValue(locationStr), // Μπαίνει το νέο έξυπνο string!
+          IntCellValue(trees), // ΝΕΟ
+          TextCellValue(locationStr),
           DoubleCellValue(totalCost),
           DoubleCellValue(totalRevenue),
           DoubleCellValue(netProfit),
           DoubleCellValue(totalOil),
           DoubleCellValue(totalOlives),
           DoubleCellValue(double.parse(yieldPerStremma.toStringAsFixed(2))),
+          DoubleCellValue(double.parse(yieldPerTree.toStringAsFixed(2))), // ΝΕΟ
+          DoubleCellValue(
+            double.parse(profitPerTree.toStringAsFixed(2)),
+          ), // ΝΕΟ
         ]);
         currentRow++;
       }

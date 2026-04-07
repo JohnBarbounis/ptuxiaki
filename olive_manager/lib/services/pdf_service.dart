@@ -47,7 +47,9 @@ class PdfService {
       }
 
       double profit = revenue - cost;
-      double yieldPerStremma = area > 0 ? (oil / area) : 0.0;
+      // double yieldPerStremma = area > 0 ? (oil / area) : 0.0;
+      int trees = g['treeCount'] != null ? g['treeCount'] as int : 0;
+      double oilPerTree = trees > 0 ? (oil / trees) : 0.0;
 
       globalExpenses += cost;
       globalRevenue += revenue;
@@ -56,10 +58,11 @@ class PdfService {
       tableData.add([
         name,
         '${area.toStringAsFixed(1)} Στρ.',
+        '$trees', // ΝΕΟ: Εμφάνιση Αριθμού Δέντρων
         '${cost.toStringAsFixed(2)} €',
         '${revenue.toStringAsFixed(2)} €',
         '${profit.toStringAsFixed(2)} €',
-        '${yieldPerStremma.toStringAsFixed(1)} L/Στρ.',
+        '${oilPerTree.toStringAsFixed(1)} L', // ΝΕΟ: Αλλάξαμε την απόδοση σε Λίτρα ανά Δέντρο!
       ]);
     }
 
@@ -157,11 +160,12 @@ class PdfService {
               headers: [
                 'Χωράφι',
                 'Στρέμματα',
+                'Δέντρα',
                 'Έξοδα',
                 'Έσοδα',
                 'Κέρδος',
-                'Απόδοση',
-              ],
+                'L/Δέντρο',
+              ], // Ανανεωμένα Headers
               data: tableData,
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               headerStyle: pw.TextStyle(
@@ -175,10 +179,11 @@ class PdfService {
               cellAlignments: {
                 0: pw.Alignment.centerLeft,
                 1: pw.Alignment.center,
-                2: pw.Alignment.centerRight,
+                2: pw.Alignment.center, // Στοίχιση για τα δέντρα
                 3: pw.Alignment.centerRight,
                 4: pw.Alignment.centerRight,
-                5: pw.Alignment.center,
+                5: pw.Alignment.centerRight,
+                6: pw.Alignment.center, // Στοίχιση για το L/Δέντρο
               },
               oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey50),
             ),
