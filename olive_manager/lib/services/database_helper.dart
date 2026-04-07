@@ -26,7 +26,7 @@ class DatabaseHelper {
       path,
       version: 2, // ΑΝΕΒΑΖΟΥΜΕ ΤΗΝ ΕΚΔΟΣΗ
       onCreate: _createDB,
-      onUpgrade: _onUpgrade, // ΠΡΟΣΘΗΚΗ ΑΝΑΒΑΘΜΙΣΗΣ
+      onUpgrade: _onUpgrade, // ΠΡΟΣΘΗΚΗ ΑΝΑΒΑΘΜΙΣΗΣ //
     );
   }
 
