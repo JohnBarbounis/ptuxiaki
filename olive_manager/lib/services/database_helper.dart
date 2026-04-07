@@ -19,10 +19,25 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath(); // Βρίσκει τον φάκελο του κινητού
+    final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2, // ΑΝΕΒΑΖΟΥΜΕ ΤΗΝ ΕΚΔΟΣΗ
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade, // ΠΡΟΣΘΗΚΗ ΑΝΑΒΑΘΜΙΣΗΣ
+    );
+  }
+
+  // Αυτή η συνάρτηση τρέχει αν η εφαρμογή βρει παλιά βάση (Version 1)
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Προσθέτουμε τη στήλη treeCount στην υπάρχουσα βάση
+      await db.execute(
+        'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
+      );
+    }
   }
 
   // Δημιουργία των πινάκων με SQL
@@ -46,6 +61,7 @@ class DatabaseHelper {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       area REAL NOT NULL,
+      treeCount INTEGER NOT NULL, -- ΠΡΟΣΘΗΚΗ ΕΔΩ ΓΙΑ ΝΕΕΣ ΕΓΚΑΤΑΣΤΑΣΕΙΣ
       lat REAL,
       lng REAL,
       boundaries TEXT
