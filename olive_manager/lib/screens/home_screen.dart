@@ -455,63 +455,89 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-            tooltip: 'Αναφορά PDF',
+            icon: const Icon(
+              Icons.assessment,
+              color: Colors.white,
+            ), // Εικονίδιο Αναφορών
+            tooltip: 'Εξαγωγή Δεδομένων',
             onPressed: () {
-              // ΝΕΟ: Ανοίγει μενού επιλογών για το PDF
               showModalBottomSheet(
                 context: context,
                 shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                builder: (context) => SafeArea(
+                builder: (context) => Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'Επιλογές Αναφοράς PDF',
+                      const Text(
+                        'Εξαγωγή Αναφορών',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+
+                      // --- ΕΠΙΛΟΓΕΣ PDF ---
+                      const Divider(),
+                      const ListTile(
+                        title: Text(
+                          'ΑΝΑΦΟΡΑ PDF',
                           style: TextStyle(
-                            fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: Colors.green,
                           ),
                         ),
                       ),
                       ListTile(
-                        leading: const Icon(
-                          Icons.share,
-                          color: Colors.blue,
-                          size: 28,
-                        ),
-                        title: const Text('Αποστολή / Αποθήκευση'),
-                        subtitle: const Text(
-                          'Μέσω Gmail, Google Drive, Viber κ.α.',
-                        ),
-                        onTap: () async {
-                          Navigator.pop(context); // Κλείσιμο μενού
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Προετοιμασία αρχείου...'),
-                            ),
-                          );
-                          await PdfService.shareReport(); // Καλεί τη ΝΕΑ συνάρτηση
+                        leading: const Icon(Icons.share, color: Colors.blue),
+                        title: const Text('Κοινοποίηση PDF'),
+                        subtitle: const Text('Αποστολή σε Gmail, Drive, Viber'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          PdfService.shareReport();
                         },
                       ),
                       ListTile(
                         leading: const Icon(
                           Icons.print,
-                          color: Colors.green,
-                          size: 28,
+                          color: Colors.blueGrey,
                         ),
-                        title: const Text('Προβολή / Εκτύπωση'),
-                        subtitle: const Text('Άνοιγμα του εγγράφου στην οθόνη'),
-                        onTap: () async {
-                          Navigator.pop(context); // Κλείσιμο μενού
-                          await PdfService.printReport(); // Καλεί την παλιά συνάρτηση
+                        title: const Text('Προβολή & Εκτύπωση'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          PdfService.printReport();
                         },
                       ),
-                      const SizedBox(height: 10),
+
+                      // --- ΕΠΙΛΟΓΕΣ EXCEL ---
+                      const Divider(),
+                      const ListTile(
+                        title: Text(
+                          'ΑΡΧΕΙΟ EXCEL',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.table_chart,
+                          color: Colors.green,
+                        ),
+                        title: const Text('Κοινοποίηση Excel (.xlsx)'),
+                        subtitle: const Text(
+                          'Ιδανικό για λογιστές και επεξεργασία σε PC',
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          BackupService.shareExcelReport();
+                        },
+                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -654,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SnackBar(content: Text('Δημιουργία αρχείου Excel...')),
                 );
 
-                bool success = await BackupService.exportToExcel();
+                bool success = await BackupService.shareExcelReport();
 
                 if (success && mounted) {
                   scaffoldMessenger.showSnackBar(

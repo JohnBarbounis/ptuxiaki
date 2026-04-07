@@ -35,9 +35,12 @@ class BackupService {
       final dbPath = await getDatabasesPath();
       final path = join(dbPath, 'olive_manager.db');
       if (await File(path).exists()) {
-        await Share.shareXFiles([
-          XFile(path),
-        ], text: 'Αντίγραφο Ασφαλείας - Olive Manager');
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(path)],
+            text: 'Αντίγραφο Ασφαλείας - Olive Manager',
+          ),
+        );
       }
     } catch (e) {
       print(e);
@@ -91,7 +94,7 @@ class BackupService {
   }
 
   // --- 4. ΕΞΑΓΩΓΗ ΣΕ EXCEL ΜΕ ΕΞΥΠΝΗ ΤΟΠΟΘΕΣΙΑ ---
-  static Future<bool> exportToExcel() async {
+  static Future<bool> shareExcelReport() async {
     try {
       var excel = Excel.createExcel();
       final db = await DatabaseHelper.instance.database;
@@ -330,19 +333,21 @@ class BackupService {
       // Αποθήκευση και Κοινοποίηση
       var fileBytes = excel.save();
       final directory = await getTemporaryDirectory();
-      final path = join(
-        directory.path,
-        'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}_${DateTime.now().year}.xlsx',
+      final path =
+          "${directory.path}/OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.xlsx";
+
+      await File(path).writeAsBytes(fileBytes!, flush: true);
+
+      // Χρησιμοποιούμε το share_plus για να ανοίξει το μενού (Gmail, Drive κλπ)
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          text: 'Οικονομική και Γεωπονική Αναφορά (Excel)',
+        ),
       );
-
-      File(path).writeAsBytesSync(fileBytes!, flush: true);
-
-      await Share.shareXFiles([
-        XFile(path),
-      ], text: 'Οικονομική και Γεωπονική Αναφορά (Excel)');
       return true;
     } catch (e) {
-      print("Σφάλμα εξαγωγής Excel: $e");
+      print("Σφάλμα Excel: $e");
       return false;
     }
   }
