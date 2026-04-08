@@ -1085,6 +1085,64 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: Colors.red,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Διαγραφή Εργασίας;'),
+                                          ],
+                                        ),
+                                        content: const Text(
+                                          'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία; Η ενέργεια δεν μπορεί να αναιρεθεί.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(
+                                                  false,
+                                                ), // Επιστρέφει false -> Ακυρώνει το swipe
+                                            child: const Text(
+                                              'ΑΚΥΡΟ',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(
+                                                  true,
+                                                ), // Επιστρέφει true -> Προχωράει η διαγραφή
+                                            child: const Text(
+                                              'ΔΙΑΓΡΑΦΗ',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ) ??
+                                  false; // Το ?? false προστατεύει αν ο χρήστης πατήσει εκτός του παραθύρου
+                            },
                             onDismissed: (direction) async {
                               await DatabaseHelper.instance.deleteTask(task.id);
                               _loadData();
@@ -1142,6 +1200,62 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 color: Colors.white,
                               ),
                             ),
+                            // --- ΝΕΟ: ΕΠΙΒΕΒΑΙΩΣΗ ΔΙΑΓΡΑΦΗΣ ΣΥΓΚΟΜΙΔΗΣ ---
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: Colors.red,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Διαγραφή Συγκομιδής;'),
+                                          ],
+                                        ),
+                                        content: const Text(
+                                          'Είστε σίγουροι ότι θέλετε να διαγράψετε τη συγκομιδή; Τα συνολικά έσοδα του χωραφιού θα μειωθούν ανάλογα.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text(
+                                              'ΑΚΥΡΟ',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text(
+                                              'ΔΙΑΓΡΑΦΗ',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ) ??
+                                  false;
+                            },
                             onDismissed: (direction) async {
                               await DatabaseHelper.instance.deleteHarvest(
                                 harvest.id,
