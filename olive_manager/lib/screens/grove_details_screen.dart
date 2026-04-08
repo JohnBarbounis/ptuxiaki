@@ -275,6 +275,162 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     if (result == true) _loadData();
   }
 
+  // --- ΝΕΟ: Εμφάνιση Λεπτομερειών Εργασίας (Ψηφιακή Απόδειξη) ---
+  void _showTaskDetails(BuildContext context, Task task) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header με Εικονίδιο, Τίτλο και Κόστος
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.agriculture,
+                    color: Colors.green,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        task.type,
+                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${task.cost.toStringAsFixed(2)} €',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 30, thickness: 1.5),
+
+            // Ημερομηνία
+            _buildDetailRow(
+              Icons.calendar_today,
+              'Ημερομηνία',
+              '${task.date.day}/${task.date.month}/${task.date.year}',
+            ),
+            const SizedBox(height: 16),
+
+            // --- ΠΛΑΙΣΙΟ ΣΗΜΕΙΩΣΕΩΝ ---
+            const Text(
+              'Σημειώσεις / Φάρμακα:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (task.notes.trim().isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.yellow[600]!, width: 1),
+                ),
+                child: Text(
+                  task.notes,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.black87,
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Δεν υπάρχουν σημειώσεις για αυτή την εργασία.',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 24),
+
+            // Κουμπί Κλεισίματος
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[200],
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'ΚΛΕΙΣΙΜΟ',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Βοηθητικό Widget για τις γραμμές του Bottom Sheet
+  Widget _buildDetailRow(IconData icon, String title, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Text(
+          '$title: ',
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final advancedAdvice = _getAdvancedFarmingAdvice();
@@ -858,12 +1014,16 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                               await DatabaseHelper.instance.deleteTask(task.id);
                               _loadData();
                             },
+
                             child: Card(
                               margin: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 4,
                               ),
                               child: ListTile(
+                                // --- ΝΕΟ: Ενεργοποιεί το αναδυόμενο παράθυρο ---
+                                onTap: () => _showTaskDetails(context, task),
+
                                 leading: const Icon(
                                   Icons.agriculture,
                                   color: Colors.green,
@@ -880,14 +1040,10 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                   style: const TextStyle(fontSize: 12),
                                 ),
                                 isThreeLine: true,
-                                trailing: Text(
-                                  '${task.cost.toStringAsFixed(2)} €',
-                                  style: const TextStyle(
-                                    color: Colors.redAccent,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
+                                trailing: const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.grey,
+                                ), // Αλλάξαμε το trailing για να δείχνει ότι πατιέται!
                               ),
                             ),
                           );

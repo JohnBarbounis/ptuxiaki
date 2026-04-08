@@ -15,12 +15,14 @@ class BackupService {
   static Future<bool> _requestStoragePermission() async {
     if (Platform.isAndroid) {
       var manageStatus = await Permission.manageExternalStorage.status;
-      if (!manageStatus.isGranted)
+      if (!manageStatus.isGranted) {
         manageStatus = await Permission.manageExternalStorage.request();
+      }
 
       var storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted)
+      if (!storageStatus.isGranted) {
         storageStatus = await Permission.storage.request();
+      }
 
       return manageStatus.isGranted || storageStatus.isGranted;
     }

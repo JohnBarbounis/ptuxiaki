@@ -227,11 +227,13 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         throw Exception('Αρνηθήκατε την άδεια.');
+      }
     }
-    if (permission == LocationPermission.deniedForever)
+    if (permission == LocationPermission.deniedForever) {
       throw Exception('Οι άδειες είναι κλειδωμένες.');
+    }
 
     return await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
@@ -271,13 +273,14 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   }
 
   void _showError(String msg) {
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg.replaceAll('Exception: ', '')),
           backgroundColor: Colors.red,
         ),
       );
+    }
   }
 
   void _saveGrove() async {
