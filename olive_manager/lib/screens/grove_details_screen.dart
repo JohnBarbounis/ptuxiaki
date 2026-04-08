@@ -54,7 +54,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -532,6 +532,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           tabs: const [
             Tab(icon: Icon(Icons.build), text: 'ΕΡΓΑΣΙΕΣ'),
             Tab(icon: Icon(Icons.opacity), text: 'ΣΥΓΚΟΜΙΔΗ'),
+            Tab(icon: Icon(Icons.bar_chart), text: 'ΟΙΚΟΝΟΜΙΚΑ'),
           ],
         ),
       ),
@@ -822,248 +823,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     ),
                   ),
 
-                // --- 3. ΟΙΚΟΝΟΜΙΚΟ DASHBOARD ---
-                Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Column(
-                        children: [
-                          const Text(
-                            'Έξοδα',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          Text(
-                            '${totalCost.toStringAsFixed(2)}€',
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(height: 30, width: 1, color: Colors.grey[300]),
-                      Column(
-                        children: [
-                          const Text(
-                            'Έσοδα',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          Text(
-                            '${totalRevenue.toStringAsFixed(2)}€',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(height: 30, width: 1, color: Colors.grey[300]),
-                      Column(
-                        children: [
-                          const Text(
-                            'Καθαρό Κέρδος',
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '${(totalRevenue - totalCost) >= 0 ? '+' : ''}${(totalRevenue - totalCost).toStringAsFixed(2)}€',
-                            style: TextStyle(
-                              color: (totalRevenue - totalCost) >= 0
-                                  ? Colors.green[800]
-                                  : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // --- ΝΕΟ: ΓΕΩΠΟΝΙΚΟ DASHBOARD (ΔΕΙΚΤΕΣ ΔΕΝΤΡΩΝ) ---
-                if (widget.grove.treeCount > 0)
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors
-                          .green[50], // Ελαφρύ πράσινο φόντο για να ξεχωρίζει ως "Γεωπονικό"
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green[200]!, width: 1),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Αγρονομικοί Δείκτες',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // 1ος Δείκτης: Πυκνότητα Φύτευσης
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.park,
-                                  color: Colors.green,
-                                  size: 20,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.grove.area > 0
-                                      ? (widget.grove.treeCount /
-                                                widget.grove.area)
-                                            .toStringAsFixed(1)
-                                      : '0',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const Text(
-                                  'Δέντρα / Στρ.',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              height: 30,
-                              width: 1,
-                              color: Colors.green[200],
-                            ),
-
-                            // 2ος Δείκτης: Λίτρα ανά Δέντρο
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.water_drop,
-                                  color: Colors.amber,
-                                  size: 20,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${(totalOil / widget.grove.treeCount).toStringAsFixed(1)} L',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const Text(
-                                  'Λάδι / Δέντρο',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              height: 30,
-                              width: 1,
-                              color: Colors.green[200],
-                            ),
-
-                            // 3ος Δείκτης: Κέρδος ανά Δέντρο
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.euro,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${((totalRevenue - totalCost) / widget.grove.treeCount).toStringAsFixed(1)} €',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: (totalRevenue - totalCost) >= 0
-                                        ? Colors.blue[700]
-                                        : Colors.red,
-                                  ),
-                                ),
-                                const Text(
-                                  'Κέρδος / Δέν.',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                // Προσθήκη στο UI (π.χ. κάτω από τον χάρτη ή μέσα στο Dashboard)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 4.0,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.park, size: 16, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${widget.grove.treeCount} Δέντρα',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Icon(
-                        Icons.straighten,
-                        size: 16,
-                        color: Colors.blueGrey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${widget.grove.area} Στρέμματα',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // --- 4. TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ) ---
+                // --- 4. TABS (ΕΡΓΑΣΙΕΣ / ΣΥΓΚΟΜΙΔΗ / ΟΙΚΟΝΟΜΙΚΑ) ---
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -1183,7 +943,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         },
                       ),
 
+                      // ------------------------------------
                       // ΚΑΡΤΕΛΑ 2: ΣΥΓΚΟΜΙΔΗ
+                      // ------------------------------------
                       ListView.builder(
                         itemCount: harvests.length,
                         itemBuilder: (context, index) {
@@ -1321,20 +1083,298 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                           );
                         },
                       ),
+
+                      // ------------------------------------
+                      // ΚΑΡΤΕΛΑ 3: ΚΑΡΤΕΛΑ ΟΙΚΟΝΟΜΙΚΩΝ
+                      // ------------------------------------
+                      ListView(
+                        padding: const EdgeInsets.only(top: 8, bottom: 20),
+                        children: [
+                          // 1. Βασικές Πληροφορίες Μεγέθους
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 8.0,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.park,
+                                  size: 20,
+                                  color: Colors.green,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${widget.grove.treeCount} Δέντρα',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                const Icon(
+                                  Icons.square_foot,
+                                  size: 20,
+                                  color: Colors.blueGrey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${widget.grove.area} Στρέμματα',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(indent: 30, endIndent: 30),
+
+                          // 2. Επικόλληση του Οικονομικού Dashboard
+                          Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Column(
+                                  children: [
+                                    const Text(
+                                      'Έξοδα',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${totalCost.toStringAsFixed(2)}€',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  height: 30,
+                                  width: 1,
+                                  color: Colors.grey[300],
+                                ),
+                                Column(
+                                  children: [
+                                    const Text(
+                                      'Έσοδα',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${totalRevenue.toStringAsFixed(2)}€',
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  height: 30,
+                                  width: 1,
+                                  color: Colors.grey[300],
+                                ),
+                                Column(
+                                  children: [
+                                    const Text(
+                                      'Καθαρό Κέρδος',
+                                      style: TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(totalRevenue - totalCost) >= 0 ? '+' : ''}${(totalRevenue - totalCost).toStringAsFixed(2)}€',
+                                      style: TextStyle(
+                                        color: (totalRevenue - totalCost) >= 0
+                                            ? Colors.green[800]
+                                            : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // 3. Επικόλληση του Γεωπονικού Dashboard
+                          if (widget.grove.treeCount > 0)
+                            Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.green[200]!,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'Αγρονομικοί Δείκτες',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      // 1ος Δείκτης: Πυκνότητα Φύτευσης
+                                      Column(
+                                        children: [
+                                          const Icon(
+                                            Icons.park,
+                                            color: Colors.green,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            widget.grove.area > 0
+                                                ? (widget.grove.treeCount /
+                                                          widget.grove.area)
+                                                      .toStringAsFixed(1)
+                                                : '0',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const Text(
+                                            'Δέντρα / Στρ.',
+                                            style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        height: 30,
+                                        width: 1,
+                                        color: Colors.green[200],
+                                      ),
+
+                                      // 2ος Δείκτης: Λίτρα ανά Δέντρο
+                                      Column(
+                                        children: [
+                                          const Icon(
+                                            Icons.water_drop,
+                                            color: Colors.amber,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${(totalOil / widget.grove.treeCount).toStringAsFixed(1)} L',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const Text(
+                                            'Λάδι / Δέντρο',
+                                            style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        height: 30,
+                                        width: 1,
+                                        color: Colors.green[200],
+                                      ),
+
+                                      // 3ος Δείκτης: Κέρδος ανά Δέντρο
+                                      Column(
+                                        children: [
+                                          const Icon(
+                                            Icons.euro,
+                                            color: Colors.blue,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${((totalRevenue - totalCost) / widget.grove.treeCount).toStringAsFixed(1)} €',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color:
+                                                  (totalRevenue - totalCost) >=
+                                                      0
+                                                  ? Colors.blue[700]
+                                                  : Colors.red,
+                                            ),
+                                          ),
+                                          const Text(
+                                            'Κέρδος / Δέν.',
+                                            style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _onFabPressed,
-        backgroundColor: Colors.green[700],
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          _tabController.index == 0 ? 'Νέα Εργασία' : 'Νέα Συγκομιδή',
-          style: const TextStyle(color: Colors.white),
-        ),
-      ),
+      floatingActionButton: _tabController.index == 2
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _onFabPressed,
+              backgroundColor: Colors.green[700],
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(
+                _tabController.index == 0 ? 'Νέα Εργασία' : 'Νέα Συγκομιδή',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
     );
   }
 }
