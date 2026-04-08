@@ -574,15 +574,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Το υπάρχον DrawerHeader ...
+            // --- ΝΕΟ ΜΕΝΟΥ ΓΙΑ JSON BACKUP (ΜΕ ΕΠΙΛΟΓΕΣ) ---
             ListTile(
               leading: const Icon(Icons.cloud_upload, color: Colors.blue),
               title: const Text('Δημιουργία Backup'),
-              subtitle: const Text('Αποθήκευση ή Κοινοποίηση'),
+              subtitle: const Text('Εξαγωγή δεδομένων (JSON)'),
               onTap: () {
                 Navigator.pop(context); // Κλείνει το πλαϊνό μενού
 
-                // ΝΕΟ: Ανοίγει ένα αναδυόμενο μενού από κάτω (Bottom Sheet)
+                // Ανοίγει ένα BottomSheet για να διαλέξει ο χρήστης
                 showModalBottomSheet(
                   context: context,
                   shape: const RoundedRectangleBorder(
@@ -597,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Padding(
                           padding: EdgeInsets.all(16.0),
                           child: Text(
-                            'Επιλογή Αποθήκευσης',
+                            'Επιλογές Backup',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -605,29 +605,44 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         ListTile(
-                          leading: const Icon(
-                            Icons.download,
-                            color: Colors.green,
-                            size: 28,
-                          ),
-                          title: const Text('Αποθήκευση στη συσκευή'),
-                          subtitle: const Text('Στις Λήψεις ή στα Έγγραφά σας'),
+                          leading: const Icon(Icons.share, color: Colors.blue),
+                          title: const Text('Αποστολή (Share)'),
+                          subtitle: const Text('Σε Email, Drive, Viber κ.λπ.'),
                           onTap: () async {
-                            // 1. ΣΩΤΗΡΙΑ ΚΙΝΗΣΗ: Αποθηκεύουμε τον "αγγελιοφόρο" πριν κλείσει το μενού
-                            final scaffoldMessenger = ScaffoldMessenger.of(
-                              context,
-                            );
+                            // 1. Αποθηκεύουμε τον messenger ΠΡΙΝ κλείσουμε το μενού
+                            final messenger = ScaffoldMessenger.of(context);
 
-                            // 2. Κλείνουμε το αναδυόμενο μενού (Bottom Sheet)
+                            // 2. Κλείνουμε το μενού
                             Navigator.pop(context);
 
-                            // 3. Εκτελούμε την ασύγχρονη λειτουργία
-                            bool success =
-                                await BackupService.saveDatabaseLocally();
+                            // 3. Δείχνουμε το μήνυμα με τη νέα μεταβλητή
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Προετοιμασία...')),
+                            );
 
-                            // 4. Χρησιμοποιούμε τη μεταβλητή που σώσαμε, ΟΧΙ το context απευθείας!
-                            if (success && mounted) {
-                              scaffoldMessenger.showSnackBar(
+                            // 4. Εκτελούμε τη χρονοβόρα ενέργεια
+                            await BackupService.shareJsonBackup();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.save_alt,
+                            color: Colors.green,
+                          ),
+                          title: const Text('Αποθήκευση στη Συσκευή'),
+                          subtitle: const Text('Επιλογή φακέλου στο κινητό'),
+                          onTap: () async {
+                            // 1. Αποθηκεύουμε τον messenger ΠΡΙΝ το pop!
+                            final messenger = ScaffoldMessenger.of(context);
+
+                            Navigator.pop(context);
+
+                            bool success =
+                                await BackupService.saveJsonLocally();
+
+                            // 2. Χρησιμοποιούμε τον αποθηκευμένο messenger (χωρίς το mounted!)
+                            if (success) {
+                              messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
                                     'Το Backup αποθηκεύτηκε επιτυχώς!',
@@ -635,22 +650,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                   backgroundColor: Colors.green,
                                 ),
                               );
+                            } else {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Ακύρωση ή σφάλμα αποθήκευσης.',
+                                  ),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
                             }
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.share,
-                            color: Colors.blue,
-                            size: 28,
-                          ),
-                          title: const Text('Κοινοποίηση (Cloud/Email)'),
-                          subtitle: const Text(
-                            'Στείλτε το στο Google Drive ή σε Email',
-                          ),
-                          onTap: () async {
-                            Navigator.pop(context); // Κλείνει το Bottom Sheet
-                            await BackupService.exportDatabase();
                           },
                         ),
                         const SizedBox(height: 10),
@@ -660,93 +669,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-
-            const Divider(), // ΠΡΟΣΘΗΚΗ ΑΠΟ ΕΔΩ ΚΑΙ ΚΑΤΩ
-
-            ListTile(
-              leading: const Icon(
-                Icons.table_chart,
-                color: Colors.green,
-                size: 28,
-              ),
-              title: const Text('Εξαγωγή σε Excel'),
-              subtitle: const Text('Δημιουργία αρχείου .xlsx'),
-              onTap: () async {
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
-                Navigator.pop(context); // Κλείνει το μενού
-
-                // Δείχνουμε ένα μικρό μήνυμα αναμονής (γιατί το Excel παίρνει 1-2 δευτερόλεπτα)
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text('Δημιουργία αρχείου Excel...')),
-                );
-
-                bool success = await BackupService.shareExcelReport();
-
-                if (success && mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Το Excel δημιουργήθηκε!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Αποτυχία δημιουργίας Excel.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-            ),
+            const Divider(),
             ListTile(
               leading: const Icon(
                 Icons.settings_backup_restore,
                 color: Colors.orange,
               ),
               title: const Text('Επαναφορά Δεδομένων'),
-              subtitle: const Text('Εισαγωγή από υπάρχον αρχείο'),
+              subtitle: const Text('Από αρχείο .json'),
               onTap: () async {
-                Navigator.pop(context); // Κλείνει το μενού
+                Navigator.pop(context);
 
-                // Προειδοποιητικό μήνυμα πριν την επαναφορά
-                bool? confirm = await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Προσοχή!'),
-                    content: const Text(
-                      'Η επαναφορά θα διαγράψει τα τωρινά σας δεδομένα και θα τα αντικαταστήσει με το αντίγραφο ασφαλείας. Είστε σίγουροι;',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('ΑΚΥΡΩΣΗ'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text(
-                          'ΝΑΙ, ΕΠΑΝΑΦΟΡΑ',
-                          style: TextStyle(color: Colors.red),
+                // Προειδοποίηση πριν τη διαγραφή της τωρινής βάσης
+                bool confirm =
+                    await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Προσοχή!'),
+                        content: const Text(
+                          'Η επαναφορά θα διαγράψει τα τρέχοντα δεδομένα της εφαρμογής και θα τα αντικαταστήσει με αυτά του αρχείου. Είστε σίγουροι;',
                         ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('ΑΚΥΡΟ'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text(
+                              'ΕΠΑΝΑΦΟΡΑ',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
+                    ) ??
+                    false;
 
-                if (confirm == true) {
-                  bool success = await BackupService.importDatabase();
-                  if (success) {
+                if (confirm) {
+                  bool success =
+                      await BackupService.importDataFromJson(); // Καλεί το JSON Restore
+                  if (success && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Η επαναφορά ολοκληρώθηκε επιτυχώς!'),
+                        content: Text('Τα δεδομένα επαναφέρθηκαν επιτυχώς!'),
                         backgroundColor: Colors.green,
                       ),
                     );
-                    _refreshGroves(); // Ανανέωση της οθόνης για να δείξει τα νέα δεδομένα
-                  } else {
+                    _refreshGroves(); // Ανανεώνουμε την αρχική οθόνη για να δείξει τα νέα δεδομένα
+                  } else if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Ακύρωση ή σφάλμα επαναφοράς.'),
+                        content: Text('Αποτυχία επαναφοράς.'),
                         backgroundColor: Colors.red,
                       ),
                     );

@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:convert'; // ΝΕΟ: Για την αποκωδικοποίηση της τοποθεσίας
-import 'package:http/http.dart'
-    as http; // ΝΕΟ: Για να καλούμε το API τοποθεσίας
+import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,88 +8,150 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/database_helper.dart';
+import 'package:http/http.dart' as http;
 
 class BackupService {
+  // --- ΒΟΗΘΗΤΙΚΗ 1: Έλεγχος Αδειών (για Android) ---
   static Future<bool> _requestStoragePermission() async {
     if (Platform.isAndroid) {
       var manageStatus = await Permission.manageExternalStorage.status;
-      if (!manageStatus.isGranted) {
+      if (!manageStatus.isGranted)
         manageStatus = await Permission.manageExternalStorage.request();
-      }
 
       var storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted) {
+      if (!storageStatus.isGranted)
         storageStatus = await Permission.storage.request();
-      }
 
       return manageStatus.isGranted || storageStatus.isGranted;
     }
     return true;
   }
 
-  // --- 1. ΕΞΑΓΩΓΗ ΒΑΣΗΣ (Drive, Email) ---
-  static Future<void> exportDatabase() async {
+  // --- ΒΟΗΘΗΤΙΚΗ 2: Παραγωγή των δεδομένων JSON ---
+  static Future<String> _generateJsonData() async {
+    final db = await DatabaseHelper.instance.database;
+    final groves = await db.query('groves');
+    final tasks = await db.query('tasks');
+    final harvests = await db.query('harvests');
+
+    final Map<String, dynamic> backupData = {
+      'version': 2,
+      'timestamp': DateTime.now().toIso8601String(),
+      'groves': groves,
+      'tasks': tasks,
+      'harvests': harvests,
+    };
+
+    return jsonEncode(backupData);
+  }
+
+  // ==================================================
+  // 1.Α. ΚΟΙΝΟΠΟΙΗΣΗ JSON (Share σε Email, Drive κλπ)
+  // ==================================================
+  static Future<bool> shareJsonBackup() async {
     try {
-      final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'olive_manager.db');
-      if (await File(path).exists()) {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(path)],
-            text: 'Αντίγραφο Ασφαλείας - Olive Manager',
-          ),
-        );
-      }
+      String jsonString = await _generateJsonData();
+      final directory = await getTemporaryDirectory();
+      final path = join(
+        directory.path,
+        'OliveManager_Backup_${DateTime.now().day}_${DateTime.now().month}.json',
+      );
+
+      File backupFile = File(path);
+      await backupFile.writeAsString(jsonString);
+
+      await Share.shareXFiles([
+        XFile(path),
+      ], text: 'Αντίγραφο Ασφαλείας (JSON) - Olive Manager');
+      return true;
     } catch (e) {
-      print(e);
+      print("Σφάλμα κοινοποίησης JSON: $e");
+      return false;
     }
   }
 
-  // --- 2. ΤΟΠΙΚΗ ΑΠΟΘΗΚΕΥΣΗ ΒΑΣΗΣ ---
-  static Future<bool> saveDatabaseLocally() async {
+  // ==================================================
+  // 1.Β. ΤΟΠΙΚΗ ΑΠΟΘΗΚΕΥΣΗ JSON (Στη Συσκευή)
+  // ==================================================
+  static Future<bool> saveJsonLocally() async {
     try {
       bool hasPermission = await _requestStoragePermission();
       if (!hasPermission) return false;
 
-      final dbPath = await getDatabasesPath();
-      File dbFile = File(join(dbPath, 'olive_manager.db'));
+      // Ζητάμε από τον χρήστη να διαλέξει φάκελο στο κινητό του
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Επιλέξτε φάκελο αποθήκευσης',
+      );
 
-      if (await dbFile.exists()) {
-        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: 'Επιλέξτε φάκελο',
+      if (selectedDirectory != null) {
+        String jsonString = await _generateJsonData();
+        String targetPath = join(
+          selectedDirectory,
+          'OliveManager_Backup_${DateTime.now().day}_${DateTime.now().month}.json',
         );
-        if (selectedDirectory != null) {
-          String targetPath = join(
-            selectedDirectory,
-            'olive_manager_backup_${DateTime.now().day}_${DateTime.now().month}.db',
-          );
-          await dbFile.copy(targetPath);
-          return true;
-        }
-      }
-    } catch (e) {
-      print(e);
-    }
-    return false;
-  }
 
-  // --- 3. ΕΙΣΑΓΩΓΗ ΒΑΣΗΣ (RESTORE) ---
-  static Future<bool> importDatabase() async {
-    try {
-      bool hasPermission = await _requestStoragePermission();
-      if (!hasPermission) return false;
-
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        final targetPath = join(await getDatabasesPath(), 'olive_manager.db');
-        await File(result.files.single.path!).copy(targetPath);
+        File backupFile = File(targetPath);
+        await backupFile.writeAsString(jsonString);
         return true;
       }
     } catch (e) {
-      print(e);
+      print("Σφάλμα τοπικής αποθήκευσης JSON: $e");
     }
     return false;
   }
+
+  // ==================================================
+  // 2. ΕΙΣΑΓΩΓΗ ΒΑΣΗΣ ΑΠΟ JSON (Restore)
+  // ==================================================
+  static Future<bool> importDataFromJson() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        File file = File(result.files.single.path!);
+        String jsonString = await file.readAsString();
+        Map<String, dynamic> backupData = jsonDecode(jsonString);
+        final db = await DatabaseHelper.instance.database;
+
+        await db.transaction((txn) async {
+          await txn.delete('groves');
+          await txn.delete('tasks');
+          await txn.delete('harvests');
+
+          for (var g in backupData['groves']) {
+            await txn.insert(
+              'groves',
+              g,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+          for (var t in backupData['tasks']) {
+            await txn.insert(
+              'tasks',
+              t,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+          for (var h in backupData['harvests']) {
+            await txn.insert(
+              'harvests',
+              h,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        });
+        return true;
+      }
+    } catch (e) {
+      print("Σφάλμα εισαγωγής JSON: $e");
+    }
+    return false;
+  }
+
+  // ... (Από εδώ και κάτω συνεχίζει κανονικά το shareExcelReport που έχουμε ήδη) ...
 
   // --- 4. ΕΞΑΓΩΓΗ ΣΕ EXCEL ΜΕ ΕΞΥΠΝΗ ΤΟΠΟΘΕΣΙΑ ---
   static Future<bool> shareExcelReport() async {
