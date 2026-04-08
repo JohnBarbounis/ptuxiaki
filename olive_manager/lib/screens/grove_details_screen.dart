@@ -389,23 +389,68 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
             const SizedBox(height: 24),
 
             // Κουμπί Κλεισίματος
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            // --- ΚΟΥΜΠΙΑ: ΕΠΕΞΕΡΓΑΣΙΑ & ΚΛΕΙΣΙΜΟ ---
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.edit, size: 20),
+                    label: const Text(
+                      'ΕΠΕΞΕΡΓΑΣΙΑ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(
+                        context,
+                      ); // 1. Κλείνουμε το αναδυόμενο παράθυρο
+
+                      // 2. Πάμε στην οθόνη προσθήκης, περνώντας της τα δεδομένα!
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddTaskScreen(
+                            groveId: widget.grove.id,
+                            existingTask: task, // Στέλνουμε την εργασία
+                          ),
+                        ),
+                      );
+
+                      // 3. Αν ο χρήστης έκανε αποθήκευση, ανανεώνουμε τη λίστα!
+                      if (result == true) {
+                        _loadData();
+                      }
+                    },
                   ),
                 ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'ΚΛΕΙΣΙΜΟ',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200],
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'ΚΛΕΙΣΙΜΟ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

@@ -5,7 +5,9 @@ import '../services/database_helper.dart';
 
 class AddTaskScreen extends StatefulWidget {
   final String groveId;
-  const AddTaskScreen({super.key, required this.groveId});
+  final Task?
+  existingTask; // Αν είναι null, σημαίνει νέα εργασία. Αν όχι, επεξεργασία υπάρχουσας.
+  const AddTaskScreen({super.key, required this.groveId, this.existingTask});
 
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
@@ -13,9 +15,9 @@ class AddTaskScreen extends StatefulWidget {
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _costController = TextEditingController();
-  final _notesController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _costController;
+  late final TextEditingController _notesController;
   final _customDaysController = TextEditingController(
     text: '7',
   ); // Για τις προσαρμοσμένες μέρες
@@ -32,6 +34,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   ];
 
   bool _scheduleNext = false;
+  late DateTime _selectedDate;
 
   // Τα έτοιμα "Πρότυπα Αγρότη"
   final List<Map<String, dynamic>> _presets = [
@@ -47,49 +50,75 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedPreset = _presets[0]; // Προεπιλογή: Ψεκασμός Δάκου
+    // Προ-συμπλήρωση αν κάνουμε Επεξεργασία (Edit)
+    _titleController = TextEditingController(
+      text: widget.existingTask?.title ?? '',
+    );
+    _costController = TextEditingController(
+      text: widget.existingTask?.cost.toString() ?? '',
+    );
+    _notesController = TextEditingController(
+      text: widget.existingTask?.notes ?? '',
+    );
+    _selectedType =
+        widget.existingTask?.type ??
+        'Κλάδεμα'; // Βάλε τον δικό σου default τύπο εδώ
+    _selectedPreset = _presets[2]; // Initialize with a default preset
+    _selectedDate = widget.existingTask?.date ?? DateTime.now();
   }
 
   Future<void> _saveTask() async {
     if (_formKey.currentState!.validate()) {
-      final now = DateTime.now();
-
-      // Αποθηκεύουμε την τωρινη εργασία που μόλις έκανε
-      final currentTask = Task(
-        id: now.millisecondsSinceEpoch.toString(),
+      // 1. Δημιουργούμε το αντικείμενο της εργασίας
+      final task = Task(
+        // Αν υπάρχει ήδη η εργασία, κρατάμε το παλιό ID. Αλλιώς, φτιάχνουμε νέο.
+        id:
+            widget.existingTask?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         groveId: widget.groveId,
         title: _titleController.text,
         type: _selectedType,
-        date: now,
-        cost: double.tryParse(_costController.text) ?? 0.0,
+        date:
+            _selectedDate, // ΣΗΜΑΝΤΙΚΟ: Βάζουμε την επιλεγμένη ημερομηνία, όχι απλά την τωρινή!
+        cost:
+            double.tryParse(_costController.text.replaceAll(',', '.')) ??
+            0.0, // Ασφαλής μετατροπή
         notes: _notesController.text,
       );
-      await DatabaseHelper.instance.insertTask(currentTask);
 
-      // Αν εχουμε επιλέξει να προγραμματίσουμε την επόμενη εργασία αποθηκεύουμε τη μελλοντικη υπενθύμιση
-      if (_scheduleNext) {
-        // Βρίσκουμε τις μέρες (αν είναι 0, παίρνουμε αυτό που έγραψε στο πεδίο)
-        int daysToAdd = _selectedPreset['days'];
-        if (daysToAdd == 0) {
-          daysToAdd = int.tryParse(_customDaysController.text) ?? 7;
+      // 2. Ελέγχουμε αν πρόκειται για ΝΕΑ ΠΡΟΣΘΗΚΗ ή ΕΠΕΞΕΡΓΑΣΙΑ
+      if (widget.existingTask == null) {
+        // --- Α. ΝΕΑ ΕΡΓΑΣΙΑ ---
+        await DatabaseHelper.instance.insertTask(task);
+
+        // Αν έχουμε επιλέξει να προγραμματίσουμε την επόμενη εργασία (Γίνεται ΜΟΝΟ σε νέες εργασίες)
+        if (_scheduleNext) {
+          int daysToAdd = _selectedPreset['days'];
+          if (daysToAdd == 0) {
+            daysToAdd = int.tryParse(_customDaysController.text) ?? 7;
+          }
+
+          final nextDate = DateTime.now().add(Duration(days: daysToAdd));
+
+          final futureTask = Task(
+            id: nextDate.millisecondsSinceEpoch
+                .toString(), // Νέο μοναδικό ID στο μέλλον
+            groveId: widget.groveId,
+            title: '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}',
+            type: _selectedType,
+            date: nextDate,
+            cost: 0.0, // Η μελλοντική εργασία δεν έχει ακόμα κόστος
+            notes:
+                'Αυτόματη υπενθύμιση. Μην ξεχάσετε να ενημερώσετε το κόστος όταν την ολοκληρώσετε.',
+          );
+          await DatabaseHelper.instance.insertTask(futureTask);
         }
-
-        final nextDate = now.add(Duration(days: daysToAdd));
-
-        final futureTask = Task(
-          id: nextDate.millisecondsSinceEpoch
-              .toString(), // Νέο μοναδικό ID (ημερομηνία στο μέλλον)
-          groveId: widget.groveId,
-          title: '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}',
-          type: _selectedType,
-          date: nextDate,
-          cost: 0.0,
-          notes:
-              'Αυτόματη υπενθύμιση. Μην ξεχάσετε να ενημερώσετε το κόστος όταν την ολοκληρώσετε.',
-        );
-        await DatabaseHelper.instance.insertTask(futureTask);
+      } else {
+        // --- Β. ΕΠΕΞΕΡΓΑΣΙΑ ΥΠΑΡΧΟΥΣΑΣ ΕΡΓΑΣΙΑΣ ---
+        await DatabaseHelper.instance.updateTask(task);
       }
 
+      // 3. Επιστροφή στην προηγούμενη οθόνη με σήμα (true) ότι έγινε αλλαγή
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -154,6 +183,23 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                title: const Text('Ημερομηνία'),
+                subtitle: Text('${_selectedDate.toLocal()}'.split(' ')[0]),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null && picked != _selectedDate) {
+                    setState(() => _selectedDate = picked);
+                  }
+                },
               ),
 
               const Divider(height: 40, thickness: 2),
