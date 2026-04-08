@@ -26,6 +26,7 @@ class GroveDetailsScreen extends StatefulWidget {
 class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final MapController _mapController = MapController();
 
   List<Task> tasks = [];
   List<Harvest> harvests = [];
@@ -697,6 +698,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                     child: Stack(
                       children: [
                         FlutterMap(
+                          mapController: _mapController,
                           options: MapOptions(
                             initialCenter: mapCenter!,
                             initialZoom: 16.5,
@@ -742,6 +744,34 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ],
                               ),
                           ],
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              shape: BoxShape.circle,
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.filter_center_focus,
+                                color: Colors.green,
+                              ),
+                              tooltip: 'Κεντράρισμα στο χωράφι',
+                              onPressed: () {
+                                // Επαναφέρει τον χάρτη στο κέντρο του χωραφιού με animation
+                                _mapController.move(mapCenter!, 16.5);
+                              },
+                            ),
+                          ),
                         ),
                         // Κουμπί Πλοήγησης (Google Maps) που επιπλέει πάνω στον χάρτη μας
                         Positioned(
