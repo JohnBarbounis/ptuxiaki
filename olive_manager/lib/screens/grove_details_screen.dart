@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_map/flutter_map.dart'; // ΝΕΟ: Για τον χάρτη
-import 'package:latlong2/latlong.dart'; // ΝΕΟ: Για τις συντεταγμένες
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
@@ -42,10 +42,14 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   double? currentTemp;
   double? windSpeed;
   int? currentWeatherCode;
+  int? currentHumidity; // ΝΕΟ
+  double? currentRain; // ΝΕΟ
+
   List<dynamic> dailyDates = [];
   List<dynamic> dailyMaxTemps = [];
   List<dynamic> dailyMinTemps = [];
   List<dynamic> dailyWeatherCodes = [];
+  List<dynamic> dailyMaxWind = []; // ΝΕΟ: Αέρας επόμενων ημερών
 
   // Μεταβλητές Χάρτη
   List<LatLng> polygonPoints = [];
@@ -70,11 +74,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     super.dispose();
   }
 
-  // --- ΝΕΟ: Αρχικοποίηση Δεδομένων Χάρτη ---
   void _initializeMapData() {
     polygonPoints = widget.grove.getPolygon();
 
-    // Αν έχουμε πολύγωνο, βρίσκουμε το κέντρο του για να κεντράρουμε τον χάρτη
     if (polygonPoints.isNotEmpty) {
       double latSum = 0;
       double lngSum = 0;
@@ -86,9 +88,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         latSum / polygonPoints.length,
         lngSum / polygonPoints.length,
       );
-    }
-    // Αν δεν έχουμε πολύγωνο αλλά έχουμε απλό σημείο (από παλιά εγγραφή)
-    else if (widget.grove.lat != null && widget.grove.lng != null) {
+    } else if (widget.grove.lat != null && widget.grove.lng != null) {
       mapCenter = LatLng(widget.grove.lat!, widget.grove.lng!);
     }
   }
@@ -123,15 +123,16 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     });
   }
 
-  // --- Καιρός 14 Ημερών ---
+  // --- ΕΜΠΛΟΥΤΙΣΜΕΝΟΣ Καιρός 14 Ημερών ---
   Future<void> _fetchUnifiedGroveWeather() async {
     if (widget.grove.lat == null || widget.grove.lng == null) {
       setState(() => isWeatherLoading = false);
       return;
     }
 
+    // ΝΕΟ API URL: Τραβάει πλέον και υγρασία, βροχή, και τον αέρα των επόμενων ημερών (windspeed_10m_max)
     final url = Uri.parse(
-      'https://api.open-meteo.com/v1/forecast?latitude=${widget.grove.lat}&longitude=${widget.grove.lng}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
+      'https://api.open-meteo.com/v1/forecast?latitude=${widget.grove.lat}&longitude=${widget.grove.lng}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max&forecast_days=14&timezone=auto',
     );
 
     try {
@@ -139,14 +140,18 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          currentTemp = data['current_weather']['temperature'];
-          windSpeed = data['current_weather']['windspeed'];
-          currentWeatherCode = data['current_weather']['weathercode'];
+          currentTemp = data['current']['temperature_2m'];
+          windSpeed = data['current']['wind_speed_10m'];
+          currentWeatherCode = data['current']['weathercode'];
+          currentHumidity = data['current']['relative_humidity_2m']?.round();
+          currentRain = data['current']['precipitation'];
 
           dailyDates = data['daily']['time'];
           dailyMaxTemps = data['daily']['temperature_2m_max'];
           dailyMinTemps = data['daily']['temperature_2m_min'];
           dailyWeatherCodes = data['daily']['weathercode'];
+          dailyMaxWind =
+              data['daily']['windspeed_10m_max']; // Ο αέρας των επόμενων ημερών
 
           isWeatherLoading = false;
         });
@@ -158,7 +163,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
   }
 
-  // --- Έξυπνη Συμβουλή Καιρού ---
+  // --- ΣΟΥΠΕΡ Έξυπνη Συμβουλή Καιρού ---
   Map<String, dynamic> _getAdvancedFarmingAdvice() {
     if (currentWeatherCode == null ||
         dailyWeatherCodes.isEmpty ||
@@ -169,17 +174,36 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         'msg': 'Δεν υπάρχουν δεδομένα καιρού (Προσθέστε τοποθεσία).',
       };
     }
+
     String formatDate(String dateStr) {
       final parts = dateStr.split('-');
       return '${parts[2]}/${parts[1]}';
     }
 
+    // 1. Τρέχουσες (Σημερινές) Συνθήκες
     if (windSpeed! > 15.0) {
       return {
         'icon': Icons.air,
-        'color': Colors.orange,
+        'color': Colors.orange[800]!,
         'msg':
-            'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Απαγορευτικό για ψεκασμό!',
+            'Δυνατός άνεμος αυτή τη στιγμή (${windSpeed!.toStringAsFixed(1)} km/h). Απαγορευτικό για ψεκασμό!',
+      };
+    }
+    if ((currentRain != null && currentRain! > 0.1) ||
+        (currentHumidity != null && currentHumidity! > 85)) {
+      return {
+        'icon': Icons.water_drop,
+        'color': Colors.blue[800]!,
+        'msg':
+            'Αυξημένη υγρασία ($currentHumidity%) ή βροχή. Ακατάλληλο για συγκομιδή, κίνδυνος μυκητολογικών ασθενειών.',
+      };
+    }
+    if (currentTemp != null && currentTemp! > 35) {
+      return {
+        'icon': Icons.thermostat,
+        'color': Colors.red[800]!,
+        'msg':
+            'ΚΑΥΣΩΝΑΣ: Κίνδυνος θερμικού στρες για τα δέντρα. Συνιστάται άρδευση.',
       };
     }
     if (currentWeatherCode! >= 51) {
@@ -190,7 +214,8 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       };
     }
 
-    int? upcomingBadWeatherIndex, upcomingFrostIndex;
+    // 2. Πρόβλεψη Επόμενων Ημερών
+    int? upcomingBadWeatherIndex, upcomingFrostIndex, upcomingWindIndex;
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
       if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
         upcomingFrostIndex = i;
@@ -198,6 +223,20 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       if (dailyWeatherCodes[i] >= 51 && upcomingBadWeatherIndex == null) {
         upcomingBadWeatherIndex = i;
       }
+      if (dailyMaxWind.isNotEmpty &&
+          dailyMaxWind[i] > 18.0 &&
+          upcomingWindIndex == null) {
+        upcomingWindIndex = i;
+      }
+    }
+
+    if (upcomingWindIndex != null && upcomingWindIndex <= 2) {
+      return {
+        'icon': Icons.air,
+        'color': Colors.orange[800]!,
+        'msg':
+            'Προσοχή: Αναμένονται ισχυροί άνεμοι (${dailyMaxWind[upcomingWindIndex]} km/h) στις ${formatDate(dailyDates[upcomingWindIndex])}. Μην προγραμματίσετε ψεκασμούς.',
+      };
     }
     if (upcomingFrostIndex != null) {
       return {
@@ -211,23 +250,24 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       if (upcomingBadWeatherIndex == 1) {
         return {
           'icon': Icons.warning_amber,
-          'color': Colors.orange[700],
+          'color': Colors.orange[700]!,
           'msg':
-              'Αύριο αναμένεται κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
+              'Αύριο αναμένεται βροχή/κακοκαιρία! Ολοκληρώστε τις επείγουσες εργασίες σήμερα.',
         };
       }
       return {
         'icon': Icons.grass,
-        'color': Colors.green[800],
+        'color': Colors.green[800]!,
         'msg':
-            'Έρχεται κακοκαιρία στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Προλάβετε να ρίξετε λίπασμα.',
+            'Έρχεται βροχή στις ${formatDate(dailyDates[upcomingBadWeatherIndex])}. Ιδανική ευκαιρία για να ρίξετε λίπασμα σήμερα.',
       };
     }
+
     return {
       'icon': Icons.wb_sunny,
-      'color': Colors.green,
+      'color': Colors.green[700]!,
       'msg':
-          'Παρατεταμένη καλοκαιρία! Ιδανικές συνθήκες για ψεκασμούς και συγκομιδή.',
+          'Παρατεταμένη καλοκαιρία τις επόμενες μέρες! Ιδανικές συνθήκες για εργασίες και συγκομιδή.',
     };
   }
 
@@ -260,7 +300,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
 
   void _onFabPressed() async {
     bool? result;
-    if (_tabController.index == 0) {
+    if (_tabController.index == 1) {
       result = await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => AddTaskScreen(groveId: widget.grove.id),
@@ -276,7 +316,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     if (result == true) _loadData();
   }
 
-  // --- ΝΕΟ: Εμφάνιση Λεπτομερειών Εργασίας (Ψηφιακή Απόδειξη) ---
   void _showTaskDetails(BuildContext context, Task task) {
     showModalBottomSheet(
       context: context,
@@ -289,7 +328,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header με Εικονίδιο, Τίτλο και Κόστος
             Row(
               children: [
                 Container(
@@ -334,16 +372,12 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
               ],
             ),
             const Divider(height: 30, thickness: 1.5),
-
-            // Ημερομηνία
             _buildDetailRow(
               Icons.calendar_today,
               'Ημερομηνία',
               '${task.date.day}/${task.date.month}/${task.date.year}',
             ),
             const SizedBox(height: 16),
-
-            // --- ΠΛΑΙΣΙΟ ΣΗΜΕΙΩΣΕΩΝ ---
             const Text(
               'Σημειώσεις / Φάρμακα:',
               style: TextStyle(
@@ -386,11 +420,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                   ),
                 ),
               ),
-
             const SizedBox(height: 24),
-
-            // Κουμπί Κλεισίματος
-            // --- ΚΟΥΜΠΙΑ: ΕΠΕΞΕΡΓΑΣΙΑ & ΚΛΕΙΣΙΜΟ ---
             Row(
               children: [
                 Expanded(
@@ -410,25 +440,17 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     onPressed: () async {
-                      Navigator.pop(
-                        context,
-                      ); // 1. Κλείνουμε το αναδυόμενο παράθυρο
-
-                      // 2. Πάμε στην οθόνη προσθήκης, περνώντας της τα δεδομένα!
+                      Navigator.pop(context);
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => AddTaskScreen(
                             groveId: widget.grove.id,
-                            existingTask: task, // Στέλνουμε την εργασία
+                            existingTask: task,
                           ),
                         ),
                       );
-
-                      // 3. Αν ο χρήστης έκανε αποθήκευση, ανανεώνουμε τη λίστα!
-                      if (result == true) {
-                        _loadData();
-                      }
+                      if (result == true) _loadData();
                     },
                   ),
                 ),
@@ -459,7 +481,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     );
   }
 
-  // Βοηθητικό Widget για τις γραμμές του Bottom Sheet
   Widget _buildDetailRow(IconData icon, String title, String value) {
     return Row(
       children: [
@@ -473,6 +494,26 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           value,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
+      ],
+    );
+  }
+
+  // Βοηθητικό Widget για την πάνω γραμμή των μετρήσεων καιρού
+  Widget _weatherMetric(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 26),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
       ],
     );
   }
@@ -525,17 +566,13 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          isScrollable:
-              true, // Συνιστάται να το κάνεις true αν δεν χωράνε τα 4 tabs στην οθόνη
+          isScrollable: true,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.green[200],
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           tabs: const [
-            Tab(
-              icon: Icon(Icons.map),
-              text: 'ΤΟΠΟΘΕΣΙΑ',
-            ), // <-- ΝΕΟ ΤΑΒ (Χάρτης & Καιρός)
+            Tab(icon: Icon(Icons.map), text: 'ΤΟΠΟΘΕΣΙΑ'),
             Tab(icon: Icon(Icons.build), text: 'ΕΡΓΑΣΙΕΣ'),
             Tab(icon: Icon(Icons.opacity), text: 'ΣΥΓΚΟΜΙΔΗ'),
             Tab(icon: Icon(Icons.bar_chart), text: 'ΟΙΚΟΝΟΜΙΚΑ'),
@@ -553,13 +590,13 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                 ListView(
                   padding: const EdgeInsets.only(top: 8, bottom: 20),
                   children: [
-                    // --- 1. ΤΟΠΙΚΟΣ ΚΑΙΡΟΣ & ΣΥΜΒΟΥΛΗ ---
                     if (widget.grove.lat != null &&
                         !isWeatherLoading &&
                         dailyDates.isNotEmpty)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Το Καρούσελ (Οριζόντια Λίστα) 14 Ημερών παραμένει!
                           Container(
                             height: 90,
                             margin: const EdgeInsets.only(top: 8),
@@ -638,7 +675,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                               horizontal: 14,
                               vertical: 8,
                             ),
-                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
@@ -656,36 +692,81 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ),
                               ],
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                            child: Column(
                               children: [
-                                Column(
-                                  children: [
-                                    Icon(
-                                      advancedAdvice['icon'],
-                                      color: advancedAdvice['color'],
-                                      size: 28,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '$currentTemp°C',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                                // Οι Μετρήσεις
+                                Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _weatherMetric(
+                                        Icons.thermostat,
+                                        '${currentTemp?.toStringAsFixed(1)}°C',
+                                        'Θερμοκρ.',
+                                        Colors.orange,
                                       ),
-                                    ),
-                                  ],
+                                      Container(
+                                        width: 1,
+                                        height: 40,
+                                        color: Colors.grey[300],
+                                      ),
+                                      _weatherMetric(
+                                        Icons.air,
+                                        '${windSpeed?.toStringAsFixed(1)} km/h',
+                                        'Αέρας',
+                                        Colors.blueGrey,
+                                      ),
+                                      Container(
+                                        width: 1,
+                                        height: 40,
+                                        color: Colors.grey[300],
+                                      ),
+                                      _weatherMetric(
+                                        Icons.water_drop,
+                                        '${currentHumidity ?? 0}%',
+                                        'Υγρασία',
+                                        Colors.blue,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    advancedAdvice['msg'],
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      height: 1.3,
+                                // Η Έξυπνη Συμβουλή
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: advancedAdvice['color'].withOpacity(
+                                      0.1,
                                     ),
+                                    borderRadius: const BorderRadius.vertical(
+                                      bottom: Radius.circular(11),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        advancedAdvice['icon'],
+                                        color: advancedAdvice['color'],
+                                        size: 28,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          advancedAdvice['msg'],
+                                          style: TextStyle(
+                                            color: advancedAdvice['color'],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -694,11 +775,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         ],
                       ),
 
-                    // --- 2. ΝΕΟ: ΕΜΦΑΝΙΣΗ ΧΑΡΤΗ ΜΕ ΣΥΝΟΡΑ (POLYGON) ---
                     if (mapCenter != null)
                       Container(
-                        height:
-                            160, // Συμπαγές μέγεθος για να μην πιάνει όλη την οθόνη
+                        height: 160,
                         margin: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 4,
@@ -728,8 +807,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 interactionOptions: const InteractionOptions(
                                   flags:
                                       InteractiveFlag.all &
-                                      ~InteractiveFlag
-                                          .rotate, // Κλειδώνουμε την περιστροφή
+                                      ~InteractiveFlag.rotate,
                                 ),
                               ),
                               children: [
@@ -747,12 +825,10 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                         color: Colors.green.withOpacity(0.4),
                                         borderColor: Colors.green[900]!,
                                         borderStrokeWidth: 3,
-                                        // isFilled: true,
                                       ),
                                     ],
                                   ),
-                                if (polygonPoints
-                                    .isEmpty) // Αν έχει μόνο απλό στίγμα (όχι πολύγωνο)
+                                if (polygonPoints.isEmpty)
                                   MarkerLayer(
                                     markers: [
                                       Marker(
@@ -790,14 +866,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     color: Colors.green,
                                   ),
                                   tooltip: 'Κεντράρισμα στο χωράφι',
-                                  onPressed: () {
-                                    // Επαναφέρει τον χάρτη στο κέντρο του χωραφιού με animation
-                                    _mapController.move(mapCenter!, 16.5);
-                                  },
+                                  onPressed: () =>
+                                      _mapController.move(mapCenter!, 16.5),
                                 ),
                               ),
                             ),
-                            // Κουμπί Πλοήγησης (Google Maps) που επιπλέει πάνω στον χάρτη μας
                             Positioned(
                               bottom: 8,
                               right: 8,
@@ -848,7 +921,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                   ],
                 ),
 
+                // ------------------------------------
                 // ΚΑΡΤΕΛΑ 2: ΕΡΓΑΣΙΕΣ
+                // ------------------------------------
                 ListView.builder(
                   itemCount: tasks.length,
                   itemBuilder: (context, index) {
@@ -881,13 +956,12 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     ],
                                   ),
                                   content: const Text(
-                                    'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία; Η ενέργεια δεν μπορεί να αναιρεθεί.',
+                                    'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία;',
                                   ),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.of(context).pop(
-                                        false,
-                                      ), // Επιστρέφει false -> Ακυρώνει το swipe
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(false),
                                       child: const Text(
                                         'ΑΚΥΡΟ',
                                         style: TextStyle(
@@ -900,9 +974,8 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.red,
                                       ),
-                                      onPressed: () => Navigator.of(context).pop(
-                                        true,
-                                      ), // Επιστρέφει true -> Προχωράει η διαγραφή
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(true),
                                       child: const Text(
                                         'ΔΙΑΓΡΑΦΗ',
                                         style: TextStyle(color: Colors.white),
@@ -912,41 +985,33 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 );
                               },
                             ) ??
-                            false; // Το ?? false προστατεύει αν ο χρήστης πατήσει εκτός του παραθύρου
+                            false;
                       },
                       onDismissed: (direction) async {
                         await DatabaseHelper.instance.deleteTask(task.id);
                         _loadData();
                       },
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
+                      child: ListTile(
+                        onTap: () => _showTaskDetails(context, task),
+                        leading: const Icon(
+                          Icons.agriculture,
+                          color: Colors.green,
                         ),
-                        child: ListTile(
-                          // --- ΝΕΟ: Ενεργοποιεί το αναδυόμενο παράθυρο ---
-                          onTap: () => _showTaskDetails(context, task),
-
-                          leading: const Icon(
-                            Icons.agriculture,
-                            color: Colors.green,
+                        title: Text(
+                          task.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          title: Text(
-                            task.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          isThreeLine: true,
-                          trailing: const Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey,
-                          ),
+                        ),
+                        subtitle: Text(
+                          '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
                         ),
                       ),
                     );
@@ -969,7 +1034,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         padding: const EdgeInsets.only(right: 20),
                         child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      // --- ΝΕΟ: ΕΠΙΒΕΒΑΙΩΣΗ ΔΙΑΓΡΑΦΗΣ ΣΥΓΚΟΜΙΔΗΣ ---
                       confirmDismiss: (direction) async {
                         return await showDialog(
                               context: context,
@@ -989,7 +1053,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     ],
                                   ),
                                   content: const Text(
-                                    'Είστε σίγουροι ότι θέλετε να διαγράψετε τη συγκομιδή; Τα συνολικά έσοδα του χωραφιού θα μειωθούν ανάλογα.',
+                                    'Είστε σίγουροι; Τα έσοδα του χωραφιού θα μειωθούν.',
                                   ),
                                   actions: [
                                     TextButton(
@@ -1024,59 +1088,21 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         await DatabaseHelper.instance.deleteHarvest(harvest.id);
                         _loadData();
                       },
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
+                      child: ListTile(
+                        leading: const Icon(Icons.opacity, color: Colors.amber),
+                        title: Text(
+                          '${harvest.oilVolume} L Λάδι',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.water_drop,
-                            color: Colors.amber,
-                          ),
-                          title: Text(
-                            '${harvest.oilVolume} L @ ${harvest.pricePerUnit} €/L',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Από ${harvest.olivesWeight} kg • Οξύτητα: ${harvest.acidity}',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                'Έσοδα: ${(harvest.oilVolume * harvest.pricePerUnit).toStringAsFixed(2)} €',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.edit,
-                              size: 20,
-                              color: Colors.blue,
-                            ),
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AddHarvestScreen(
-                                    groveId: widget.grove.id,
-                                    existingHarvest: harvest,
-                                  ),
-                                ),
-                              );
-                              if (result == true) _loadData();
-                            },
+                        subtitle: Text(
+                          '${harvest.date.day}/${harvest.date.month}/${harvest.date.year} - Οξύτητα: ${harvest.acidity}%',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        trailing: Text(
+                          '${(harvest.oilVolume * harvest.pricePerUnit).toStringAsFixed(2)} €',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -1085,12 +1111,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                 ),
 
                 // ------------------------------------
-                // ΚΑΡΤΕΛΑ 4: ΚΑΡΤΕΛΑ ΟΙΚΟΝΟΜΙΚΩΝ!
+                // ΚΑΡΤΕΛΑ 4: ΟΙΚΟΝΟΜΙΚΑ ΣΤΟΙΧΕΙΑ
                 // ------------------------------------
                 ListView(
                   padding: const EdgeInsets.only(top: 8, bottom: 20),
                   children: [
-                    // 1. Βασικές Πληροφορίες Μεγέθους
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
@@ -1116,7 +1141,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${widget.grove.area} Στρέμματα',
+                            '${widget.grove.area} Στρέμ.',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -1126,8 +1151,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       ),
                     ),
                     const Divider(indent: 30, endIndent: 30),
-
-                    // 2. Επικόλληση του Οικονομικού Dashboard
                     Container(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -1135,85 +1158,70 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       ),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        border: Border.all(color: Colors.grey[300]!),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           Column(
                             children: [
                               const Text(
                                 'Έξοδα',
                                 style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                '${totalCost.toStringAsFixed(2)}€',
+                                '${totalCost.toStringAsFixed(2)} €',
                                 style: const TextStyle(
-                                  color: Colors.red,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
                                 ),
                               ),
                             ],
                           ),
-                          Container(
-                            height: 30,
-                            width: 1,
-                            color: Colors.grey[300],
-                          ),
+                          Container(width: 1, height: 40, color: Colors.grey),
                           Column(
                             children: [
                               const Text(
                                 'Έσοδα',
                                 style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                '${totalRevenue.toStringAsFixed(2)}€',
+                                '${totalRevenue.toStringAsFixed(2)} €',
                                 style: const TextStyle(
-                                  color: Colors.green,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
                                 ),
                               ),
                             ],
                           ),
-                          Container(
-                            height: 30,
-                            width: 1,
-                            color: Colors.grey[300],
-                          ),
+                          Container(width: 1, height: 40, color: Colors.grey),
                           Column(
                             children: [
-                              const Text(
-                                'Καθαρό Κέρδος',
+                              Text(
+                                'Κέρδος',
                                 style: TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 12,
+                                  color: (totalRevenue - totalCost) >= 0
+                                      ? Colors.blue[700]
+                                      : Colors.red,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                '${(totalRevenue - totalCost) >= 0 ? '+' : ''}${(totalRevenue - totalCost).toStringAsFixed(2)}€',
+                                '${(totalRevenue - totalCost).toStringAsFixed(2)} €',
                                 style: TextStyle(
-                                  color: (totalRevenue - totalCost) >= 0
-                                      ? Colors.green[800]
-                                      : Colors.red,
-                                  fontWeight: FontWeight.bold,
                                   fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: (totalRevenue - totalCost) >= 0
+                                      ? Colors.blue[700]
+                                      : Colors.red,
                                 ),
                               ),
                             ],
@@ -1221,8 +1229,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         ],
                       ),
                     ),
-
-                    // 3. Επικόλληση του Γεωπονικού Dashboard
                     if (widget.grove.treeCount > 0)
                       Container(
                         margin: const EdgeInsets.symmetric(
@@ -1251,7 +1257,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                // 1ος Δείκτης: Πυκνότητα Φύτευσης
                                 Column(
                                   children: [
                                     const Icon(
@@ -1285,8 +1290,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                   width: 1,
                                   color: Colors.green[200],
                                 ),
-
-                                // 2ος Δείκτης: Λίτρα ανά Δέντρο
                                 Column(
                                   children: [
                                     const Icon(
@@ -1316,8 +1319,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                   width: 1,
                                   color: Colors.green[200],
                                 ),
-
-                                // 3ος Δείκτης: Κέρδος ανά Δέντρο
                                 Column(
                                   children: [
                                     const Icon(
@@ -1354,7 +1355,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                 ),
               ],
             ),
-      // Κρύβουμε το κουμπί όταν είμαστε στην Τοποθεσία (0) ή στα Οικονομικά (3)
       floatingActionButton:
           (_tabController.index == 0 || _tabController.index == 3)
           ? null
@@ -1363,9 +1363,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
               backgroundColor: Colors.green[700],
               icon: const Icon(Icons.add, color: Colors.white),
               label: Text(
-                _tabController.index == 1
-                    ? 'Νέα Εργασία'
-                    : 'Νέα Συγκομιδή', // Αλλαγή στο index
+                _tabController.index == 1 ? 'Νέα Εργασία' : 'Νέα Συγκομιδή',
                 style: const TextStyle(color: Colors.white),
               ),
             ),

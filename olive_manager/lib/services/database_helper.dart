@@ -18,40 +18,22 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // --- 1. ΑΡΧΙΚΟΠΟΙΗΣΗ ΒΑΣΗΣ ---
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     return await openDatabase(
       path,
-      version: 2, // ΑΝΕΒΑΖΟΥΜΕ ΤΗΝ ΕΚΔΟΣΗ
+      version: 1, // ΕΚΔΟΣΗ 1.0
       onCreate: _createDB,
-      onUpgrade: _onUpgrade, // ΠΡΟΣΘΗΚΗ ΑΝΑΒΑΘΜΙΣΗΣ
+      onUpgrade: _onUpgrade,
     );
   }
 
   // --- ΕΞΥΠΝΗ ΣΥΝΑΡΤΗΣΗ ΑΝΑΒΑΘΜΙΣΗΣ ---
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // 1. Ρωτάμε την SQLite για τις στήλες του πίνακα 'groves'
-      var tableInfo = await db.rawQuery('PRAGMA table_info(groves)');
-
-      // 2. Ελέγχουμε αν υπάρχει ήδη η στήλη 'treeCount'
-      bool hasTreeCount = tableInfo.any(
-        (column) => column['name'] == 'treeCount',
-      );
-
-      // 3. Αν ΔΕΝ υπάρχει, τότε μόνο την προσθέτουμε!
-      if (!hasTreeCount) {
-        try {
-          await db.execute(
-            'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
-          );
-        } catch (e) {
-          // Αν κάτι πάει στραβά, απλά το αγνοούμε (ίσως να μην υποστηρίζεται το ALTER TABLE)
-        }
-      }
-    }
+    //
   }
 
   // Δημιουργία των πινάκων με SQL
