@@ -11,6 +11,7 @@ import 'grove_details_screen.dart';
 import 'upcoming_tasks_screen.dart';
 import '../services/pdf_service.dart';
 import 'calendar_screen.dart';
+import 'comparison_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -447,6 +448,19 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green[700],
         centerTitle: true,
         actions: [
+          // ΝΕΟ ΚΟΥΜΠΙ: Σύγκριση Χωραφιών
+          IconButton(
+            icon: const Icon(Icons.leaderboard, color: Colors.white),
+            tooltip: 'Σύγκριση Χωραφιών',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ComparisonScreen(),
+                ),
+              ); // Προϋποθέτει import του comparison_screen.dart ψηλά
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_month),
             onPressed: () => Navigator.push(

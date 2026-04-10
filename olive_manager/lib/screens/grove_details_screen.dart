@@ -1162,70 +1162,95 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey[300]!),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
+                        // Changed to Column
                         children: [
-                          Column(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              const Text(
-                                'Έξοδα',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Column(
+                                children: [
+                                  const Text(
+                                    'Έξοδα',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${totalCost.toStringAsFixed(2)} €',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '${totalCost.toStringAsFixed(2)} €',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: Colors.grey,
+                              ),
+                              Column(
+                                children: [
+                                  const Text(
+                                    'Έσοδα',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${totalRevenue.toStringAsFixed(2)} €',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: Colors.grey,
+                              ),
+                              Column(
+                                children: [
+                                  Text(
+                                    'Κέρδος',
+                                    style: TextStyle(
+                                      color: (totalRevenue - totalCost) >= 0
+                                          ? Colors.blue[700]
+                                          : Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(totalRevenue - totalCost).toStringAsFixed(2)} €',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: (totalRevenue - totalCost) >= 0
+                                          ? Colors.blue[700]
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          Container(width: 1, height: 40, color: Colors.grey),
-                          Column(
-                            children: [
-                              const Text(
-                                'Έσοδα',
+                          if (totalOil > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Text(
+                                'Στόχος Πώλησης: > ${(totalCost / totalOil).toStringAsFixed(2)} €/L για κέρδος',
                                 style: TextStyle(
-                                  color: Colors.green,
+                                  color: Colors.blue[900],
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                               ),
-                              Text(
-                                '${totalRevenue.toStringAsFixed(2)} €',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(width: 1, height: 40, color: Colors.grey),
-                          Column(
-                            children: [
-                              Text(
-                                'Κέρδος',
-                                style: TextStyle(
-                                  color: (totalRevenue - totalCost) >= 0
-                                      ? Colors.blue[700]
-                                      : Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '${(totalRevenue - totalCost).toStringAsFixed(2)} €',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: (totalRevenue - totalCost) >= 0
-                                      ? Colors.blue[700]
-                                      : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
                         ],
                       ),
                     ),
