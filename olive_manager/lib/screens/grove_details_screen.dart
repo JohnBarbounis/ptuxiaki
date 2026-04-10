@@ -1009,10 +1009,28 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                           style: const TextStyle(fontSize: 12),
                         ),
                         isThreeLine: true,
-                        trailing: const Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey,
+
+                        // --- ΝΕΟ: Εμφάνιση του Κόστους δίπλα από το βελάκι ---
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize
+                              .min, // Απαραίτητο για να μην πιάσει όλο το πλάτος το Row
+                          children: [
+                            Text(
+                              '${task.cost.toStringAsFixed(2)} €',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.redAccent,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 4,
+                            ), // Μικρό κενό ανάμεσα στο ποσό και το βελάκι
+                            const Icon(Icons.chevron_right, color: Colors.grey),
+                          ],
                         ),
+
+                        // ---------------------------------------------------
                       ),
                     );
                   },
@@ -1280,96 +1298,148 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                             ),
                             const SizedBox(height: 8),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                Column(
-                                  children: [
-                                    const Icon(
-                                      Icons.park,
-                                      color: Colors.green,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      widget.grove.area > 0
-                                          ? (widget.grove.treeCount /
-                                                    widget.grove.area)
-                                                .toStringAsFixed(1)
-                                          : '0',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                // 1. Δέντρα ανά Στρέμμα
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.park,
+                                        color: Colors.green,
+                                        size: 20,
                                       ),
-                                    ),
-                                    const Text(
-                                      'Δέντρα / Στρ.',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 10,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        widget.grove.area > 0
+                                            ? (widget.grove.treeCount /
+                                                      widget.grove.area)
+                                                  .toStringAsFixed(1)
+                                            : '0',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      const Text(
+                                        'Δέντρα / Στρ.',
+                                        style: TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 10,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 Container(
                                   height: 30,
                                   width: 1,
                                   color: Colors.green[200],
                                 ),
-                                Column(
-                                  children: [
-                                    const Icon(
-                                      Icons.water_drop,
-                                      color: Colors.amber,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${(totalOil / widget.grove.treeCount).toStringAsFixed(1)} L',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+
+                                // 2. Λάδι ανά Δέντρο
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.water_drop,
+                                        color: Colors.amber,
+                                        size: 20,
                                       ),
-                                    ),
-                                    const Text(
-                                      'Λάδι / Δέντρο',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 10,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${(totalOil / widget.grove.treeCount).toStringAsFixed(1)} L',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      const Text(
+                                        'Λάδι / Δέν.',
+                                        style: TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 10,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 Container(
                                   height: 30,
                                   width: 1,
                                   color: Colors.green[200],
                                 ),
-                                Column(
-                                  children: [
-                                    const Icon(
-                                      Icons.euro,
-                                      color: Colors.blue,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${((totalRevenue - totalCost) / widget.grove.treeCount).toStringAsFixed(1)} €',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: (totalRevenue - totalCost) >= 0
-                                            ? Colors.blue[700]
-                                            : Colors.red,
+
+                                // 3. Κέρδος ανά Δέντρο
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.euro,
+                                        color: Colors.blue,
+                                        size: 20,
                                       ),
-                                    ),
-                                    const Text(
-                                      'Κέρδος / Δέν.',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 10,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${((totalRevenue - totalCost) / widget.grove.treeCount).toStringAsFixed(1)} €',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: (totalRevenue - totalCost) >= 0
+                                              ? Colors.blue[700]
+                                              : Colors.red,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      const Text(
+                                        'Κέρδος / Δέν.',
+                                        style: TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 10,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  height: 30,
+                                  width: 1,
+                                  color: Colors.green[200],
+                                ),
+
+                                // 4. ΝΕΟ: Κέρδος ανά Στρέμμα (Ο Απόλυτος Δείκτης)
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.query_stats,
+                                        color: Colors.purple,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        widget.grove.area > 0
+                                            ? '${((totalRevenue - totalCost) / widget.grove.area).toStringAsFixed(1)} €'
+                                            : '0.0 €',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: (totalRevenue - totalCost) >= 0
+                                              ? Colors.blue[700]
+                                              : Colors.red,
+                                        ),
+                                      ),
+                                      const Text(
+                                        'Κέρδος / Στρ.',
+                                        style: TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 10,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
