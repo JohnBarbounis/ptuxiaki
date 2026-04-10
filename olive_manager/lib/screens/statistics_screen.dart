@@ -22,9 +22,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   double _totalCost = 0.0;
   bool _isLoading = true;
 
-  double _totalOil = 0.0; // Νέα μεταβλητή ψηλά στην κλάση
-  int _treeCount = 0; // Νέα μεταβλητή ψηλά στην κλάση
-
   // Χρώματα για τις διάφορες εργασίες
   final Map<String, Color> _categoryColors = {
     'Κλάδεμα': Colors.brown,
@@ -46,12 +43,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final tasks = await DatabaseHelper.instance.getTasksForGrove(
       widget.groveId,
     );
-    final harvests = await DatabaseHelper.instance.getHarvestsForGrove(
-      widget.groveId,
-    );
-    final grove = await DatabaseHelper.instance.getAllGroves().then(
-      (list) => list.firstWhere((g) => g.id == widget.groveId),
-    );
 
     Map<String, double> costs = {};
     double total = 0.0;
@@ -62,14 +53,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       }
     }
 
-    double totalOil = 0.0;
-    for (var h in harvests) totalOil += h.oilVolume;
-
     setState(() {
       _categoryCosts = costs;
       _totalCost = total;
-      _totalOil = totalOil;
-      _treeCount = grove.treeCount;
       _isLoading = false;
     });
   }
@@ -144,71 +130,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   ),
                 ),
-
-                // Pro-Tips Section
-                const SizedBox(height: 20),
-                const Text(
-                  'Επιχειρηματική Ευφυΐα (Pro-Tips)',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-
-                // Κάρτα 1: Break-even Point (Κόστος ανά Λίτρο)
-                if (_totalOil > 0)
-                  Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    color: Colors.blue[50],
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.calculate,
-                        color: Colors.blue,
-                        size: 36,
-                      ),
-                      title: const Text(
-                        'Κόστος Παραγωγής',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'Κοστίζει ${(_totalCost / _totalOil).toStringAsFixed(2)}€ για να παράξετε 1 Λίτρο λαδιού στο συγκεκριμένο χωράφι.\n'
-                        'Αν η τιμή πώλησης πέσει κάτω από αυτό το ποσό, έχετε ζημιά.',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Κάρτα 2: Πρόβλεψη Παρενιαυτοφορίας
-                if (_treeCount > 0 &&
-                    (_totalOil / _treeCount) >
-                        8.0) // Έστω ότι > 8L/δέντρο είναι πολύ καλή χρονιά
-                  Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    color: Colors.orange[50],
-                    child: const ListTile(
-                      leading: Icon(
-                        Icons.trending_down,
-                        color: Colors.orange,
-                        size: 36,
-                      ),
-                      title: Text(
-                        'Πρόβλεψη Παρενιαυτοφορίας',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'Η παραγωγή είναι πολύ υψηλή. Λόγω του φαινομένου της παρενιαυτοφορίας, αναμένεται μειωμένη απόδοση την επόμενη χρονιά. '
-                        'Προσαρμόστε τα έξοδα λιπασμάτων αντίστοιχα.',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 30),
               ],
             ),
     );
