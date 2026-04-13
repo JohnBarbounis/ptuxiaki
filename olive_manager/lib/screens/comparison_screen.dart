@@ -48,7 +48,9 @@ class _ComparisonScreenState extends State<ComparisonScreen>
 
       // --- 1. ΥΠΟΛΟΓΙΣΜΟΣ ΣΥΝΟΛΙΚΩΝ ---
       double totalCost = 0.0, totalRevenue = 0.0, totalOil = 0.0;
-      for (var t in tasks) totalCost += t.cost;
+      for (var t in tasks) {
+        totalCost += t.cost;
+      }
       for (var h in harvests) {
         totalRevenue += (h.oilVolume * h.pricePerUnit);
         totalOil += h.oilVolume;
@@ -75,14 +77,19 @@ class _ComparisonScreenState extends State<ComparisonScreen>
       });
 
       // --- 2. ΥΠΟΛΟΓΙΣΜΟΣ ΑΝΑ ΕΤΟΣ ---
-      for (var t in tasks) yearsSet.add(t.date.year);
-      for (var h in harvests) yearsSet.add(h.date.year);
+      for (var t in tasks) {
+        yearsSet.add(t.date.year);
+      }
+      for (var h in harvests) {
+        yearsSet.add(h.date.year);
+      }
 
       for (int year in yearsSet) {
         double yearCost = 0.0, yearRevenue = 0.0;
 
-        for (var t in tasks.where((t) => t.date.year == year))
+        for (var t in tasks.where((t) => t.date.year == year)) {
           yearCost += t.cost;
+        }
         for (var h in harvests.where((h) => h.date.year == year)) {
           yearRevenue += (h.oilVolume * h.pricePerUnit);
         }
