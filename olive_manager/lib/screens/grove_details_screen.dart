@@ -271,6 +271,59 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     };
   }
 
+  // --- ΝΕΟ: ΕΙΔΙΚΟΣ ΣΥΝΑΓΕΡΜΟΣ ΔΑΚΟΥ & ΑΣΘΕΝΕΙΩΝ ---
+  Map<String, dynamic> _getPestAndDiseaseAlert() {
+    if (currentTemp == null || currentHumidity == null) {
+      return {
+        'title': 'Άγνωστος Κίνδυνος',
+        'msg': 'Δεν υπάρχουν επαρκή δεδομένα καιρού.',
+        'color': Colors.grey,
+        'icon': Icons.help_outline,
+      };
+    }
+
+    // ΚΑΝΟΝΑΣ 1: Ιδανικές συνθήκες Δάκου (22°C - 30°C & Υγρασία > 60%)
+    if (currentTemp! >= 22 && currentTemp! <= 30 && currentHumidity! > 60) {
+      return {
+        'title': '🔴 ΚΙΝΔΥΝΟΣ ΔΑΚΟΥ / ΜΥΚΗΤΩΝ',
+        'msg':
+            'Ιδανικές συνθήκες (22-30°C & Υγρασία >60%) για ανάπτυξη δάκου. Ελέγξτε τις παγίδες και προγραμματίστε άμεσα ψεκασμό!',
+        'color': Colors.red[700]!,
+        'icon': Icons.bug_report,
+      };
+    }
+    // ΚΑΝΟΝΑΣ 2: Καύσωνας (Σκοτώνει τον Δάκο!)
+    else if (currentTemp! > 35) {
+      return {
+        'title': '🟢 ΑΔΡΑΝΟΠΟΙΗΣΗ ΔΑΚΟΥ',
+        'msg':
+            'Ο καύσωνας (>35°C) αδρανοποιεί τον δάκο. ΔΕΝ απαιτείται εντομοκτόνο τώρα. Επικεντρωθείτε στην άρδευση του χωραφιού.',
+        'color': Colors.green[700]!,
+        'icon': Icons.thermostat,
+      };
+    }
+    // ΚΑΝΟΝΑΣ 3: Υπερβολική Υγρασία (Μύκητες)
+    else if (currentHumidity! > 85) {
+      return {
+        'title': '🟠 ΚΙΝΔΥΝΟΣ ΜΥΚΗΤΟΛΟΓΙΚΩΝ',
+        'msg':
+            'Η υπερβολική υγρασία ευνοεί ασθένειες (π.χ. Κυκλοκόνιο, Γλοιοσπόριο). Αποφύγετε κλαδέματα αυτές τις μέρες.',
+        'color': Colors.orange[700]!,
+        'icon': Icons.water_drop,
+      };
+    }
+    // ΚΑΝΟΝΑΣ 4: Ασφαλείς συνθήκες
+    else {
+      return {
+        'title': '🟢 ΧΑΜΗΛΟΣ ΚΙΝΔΥΝΟΣ',
+        'msg':
+            'Οι τρέχουσες συνθήκες δεν ευνοούν την ανάπτυξη σοβαρών ασθενειών ή εντόμων. Ιδανικό για εργασίες.',
+        'color': Colors.blue[700]!,
+        'icon': Icons.check_circle,
+      };
+    }
+  }
+
   IconData _getWeatherIcon(int code) {
     if (code <= 3) return Icons.wb_sunny;
     if (code <= 48) return Icons.cloud;
@@ -521,6 +574,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   @override
   Widget build(BuildContext context) {
     final advancedAdvice = _getAdvancedFarmingAdvice();
+    final pestAlert = _getPestAndDiseaseAlert(); // Παίρνουμε τον συναγερμό
 
     return Scaffold(
       appBar: AppBar(
@@ -772,6 +826,59 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                               ],
                             ),
                           ),
+
+                          // --- ΝΕΟ: ΚΑΡΤΑ ΣΥΝΑΓΕΡΜΟΥ ΔΑΚΟΥ ---
+                          if (widget.grove.lat != null && currentTemp != null)
+                            Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: pestAlert['color'].withOpacity(0.1),
+                                border: Border.all(
+                                  color: pestAlert['color'],
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    pestAlert['icon'],
+                                    color: pestAlert['color'],
+                                    size: 36,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          pestAlert['title'],
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: pestAlert['color'],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          pestAlert['msg'],
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // ------------------------------------
                         ],
                       ),
 

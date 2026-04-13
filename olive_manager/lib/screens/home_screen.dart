@@ -12,6 +12,7 @@ import 'upcoming_tasks_screen.dart';
 import '../services/pdf_service.dart';
 import 'calendar_screen.dart';
 import 'comparison_screen.dart';
+import '../services/agronomist_service.dart'; // ΝΕΟ IMPORT
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -751,449 +752,591 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
-          : ListView(
+          : Column(
               children: [
-                // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ 14 ΗΜΕΡΩΝ
-                if (isWeatherLoading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40.0),
-                    child: Center(
-                      child: CircularProgressIndicator(color: Colors.blue),
-                    ),
-                  )
-                else if (dailyDates.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16.0,
-                          right: 16.0,
-                          top: 16.0,
-                          bottom: 8.0,
+                // --- ΝΕΟ: ΕΞΥΠΝΗ ΚΑΡΤΑ ΓΕΩΠΟΝΟΥ (Μηνιαία Συμβουλή) ---
+                Builder(
+                  builder: (context) {
+                    final advice = AgronomistService.getMonthlyAdvice();
+                    return Container(
+                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            advice['color'].withOpacity(0.1),
+                            Colors.white,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: Text(
-                          "Καιρός Περιοχής: $locationName",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.blueGrey,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: advice['color'].withOpacity(0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
                           ),
-                        ),
+                        ],
                       ),
-                      SizedBox(
-                        height: 90,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: dailyDates.length,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          itemBuilder: (context, index) {
-                            final dateParts = dailyDates[index]
-                                .toString()
-                                .split('-');
-                            return Card(
-                              elevation: 1,
-                              margin: const EdgeInsets.only(
-                                right: 6,
-                                bottom: 4,
-                                left: 2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Container(
-                                width: 65,
-                                padding: const EdgeInsets.all(4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Colors.blue[50],
+                                  color: advice['color'].withOpacity(0.2),
+                                  shape: BoxShape.circle,
                                 ),
+                                child: Icon(
+                                  advice['icon'],
+                                  color: advice['color'],
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      index == 0
-                                          ? "Σήμερα"
-                                          : '${dateParts[2]}/${dateParts[1]}',
-                                      style: const TextStyle(
+                                      'Γεωπονικό Στάδιο Μήνα',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 11,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Icon(
-                                      _getWeatherIcon(dailyWeatherCodes[index]),
-                                      color: Colors.blue[600],
-                                      size: 22,
-                                    ),
-                                    const SizedBox(height: 4),
                                     Text(
-                                      '${dailyMaxTemps[index].round()}°/${dailyMinTemps[index].round()}°',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
+                                      advice['stage'],
+                                      style: TextStyle(
+                                        color: advice['color'],
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      // ΤΟ ΕΞΥΠΝΟ ΜΗΝΥΜΑ ΠΟΥ ΕΙΧΕ ΧΑΘΕΙ!
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: advancedAdvice['color'].withOpacity(0.5),
-                            width: 1.5,
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: advancedAdvice['color'].withOpacity(0.1),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Icon(
-                              advancedAdvice['icon'],
-                              color: advancedAdvice['color'],
-                              size: 32,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                advancedAdvice['msg'],
-                                style: TextStyle(
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  // Κάρτα Σφάλματος Καιρού
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.withOpacity(0.5)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.wifi_off,
-                          color: Colors.orange[800],
-                          size: 32,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Divider(),
+                          ),
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Αδυναμία φόρτωσης καιρού',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange[900],
+                              const Icon(
+                                Icons.lightbulb,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  advice['advice'],
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.4,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                              const Text(
-                                'Ελέγξτε τη σύνδεσή σας στο διαδίκτυο.',
-                              ),
                             ],
                           ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.refresh, color: Colors.orange[800]),
-                          onPressed: () {
-                            setState(() => isWeatherLoading = true);
-                            _fetchUnifiedWeather();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // 2. GLOBAL DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Column(
+                    );
+                  },
+                ),
+
+                // --- ΕΔΩ ΣΥΝΕΧΙΖΕΙ Ο ΚΩΔΙΚΑΣ ΣΟΥ (Η λίστα με τα χωράφια) ---
+                Expanded(
+                  child: ListView(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Συνολική Εικόνα',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                      // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ 14 ΗΜΕΡΩΝ
+                      if (isWeatherLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40.0),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.blue,
                             ),
                           ),
-                          DropdownButton<String>(
-                            value: _selectedFilter,
-                            underline: const SizedBox(),
-                            icon: const Icon(
-                              Icons.filter_list,
-                              color: Colors.green,
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'all',
-                                child: Text('Όλα τα έτη'),
+                        )
+                      else if (dailyDates.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 16.0,
+                                right: 16.0,
+                                top: 16.0,
+                                bottom: 8.0,
                               ),
-                              DropdownMenuItem(
-                                value: 'year',
-                                child: Text('Φέτος'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'month',
-                                child: Text('Αυτός ο μήνας'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'custom',
-                                child: Text('Προσαρμοσμένη...'),
-                              ),
-                            ],
-                            onChanged: (value) async {
-                              if (value == 'custom') {
-                                await _pickCustomDateRange();
-                              } else if (value != null) {
-                                setState(() {
-                                  _selectedFilter = value;
-                                  _customDateRange = null;
-                                });
-                                _refreshGroves();
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_selectedFilter == 'custom' &&
-                          _customDateRange != null)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            '${_customDateRange!.start.day}/${_customDateRange!.start.month}/${_customDateRange!.start.year} - ${_customDateRange!.end.day}/${_customDateRange!.end.month}/${_customDateRange!.end.year}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 12),
-
-                      // Οι 3 Κάρτες Οικονομικών
-                      Row(
-                        children: [
-                          _buildFinancialCard(
-                            'Έσοδα',
-                            totalAppRevenue,
-                            Icons.trending_up,
-                            Colors.green,
-                          ),
-                          _buildFinancialCard(
-                            'Έξοδα',
-                            totalAppExpenses,
-                            Icons.trending_down,
-                            Colors.red,
-                          ),
-                          _buildFinancialCard(
-                            'Κέρδος',
-                            netProfit,
-                            Icons.account_balance_wallet,
-                            netProfit >= 0 ? Colors.blue : Colors.orange,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 3. ΚΟΥΜΠΙ ΕΡΓΑΣΙΩΝ
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const UpcomingTasksScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.checklist, color: Colors.white),
-                    label: const Text(
-                      'Μελλοντικές Εργασίες',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700],
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const Padding(
-                  padding: EdgeInsets.only(
-                    left: 16.0,
-                    right: 16.0,
-                    top: 24.0,
-                    bottom: 8.0,
-                  ),
-                  child: Text(
-                    'Η Περιουσία μου (Χωράφια)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-
-                // 4. ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
-                myGroves.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Center(
-                          child: Text(
-                            'Δεν έχετε προσθέσει κανένα χωράφι.',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: myGroves.length,
-                        itemBuilder: (context, index) {
-                          final grove = myGroves[index];
-                          return Dismissible(
-                            key: Key(grove.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              color: Colors.red,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              child: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                                size: 30,
+                              child: Text(
+                                "Καιρός Περιοχής: $locationName",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.blueGrey,
+                                ),
                               ),
                             ),
-                            confirmDismiss: (direction) async {
-                              return await showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Διαγραφή;"),
-                                  content: const Text(
-                                    "Θα διαγραφούν ΟΛΕΣ οι εργασίες αυτού του χωραφιού!",
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(false),
-                                      child: const Text("ΑΚΥΡΩΣΗ"),
+                            SizedBox(
+                              height: 90,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: dailyDates.length,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final dateParts = dailyDates[index]
+                                      .toString()
+                                      .split('-');
+                                  return Card(
+                                    elevation: 1,
+                                    margin: const EdgeInsets.only(
+                                      right: 6,
+                                      bottom: 4,
+                                      left: 2,
                                     ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(true),
-                                      child: const Text(
-                                        "ΔΙΑΓΡΑΦΗ",
-                                        style: TextStyle(color: Colors.red),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Container(
+                                      width: 65,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: Colors.blue[50],
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            index == 0
+                                                ? "Σήμερα"
+                                                : '${dateParts[2]}/${dateParts[1]}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Icon(
+                                            _getWeatherIcon(
+                                              dailyWeatherCodes[index],
+                                            ),
+                                            color: Colors.blue[600],
+                                            size: 22,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${dailyMaxTemps[index].round()}°/${dailyMinTemps[index].round()}°',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                            onDismissed: (direction) async {
-                              await DatabaseHelper.instance.deleteGrove(
-                                grove.id,
-                              );
-                              _refreshGroves();
-                            },
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.green[100],
-                                  child: const Icon(
-                                    Icons.nature,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                                title: Text(
-                                  grove.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${grove.area} στρέμματα',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                onTap: () async {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          GroveDetailsScreen(grove: grove),
-                                    ),
                                   );
-                                  _refreshGroves();
                                 },
                               ),
                             ),
-                          );
-                        },
+
+                            // ΤΟ ΕΞΥΠΝΟ ΜΗΝΥΜΑ ΠΟΥ ΕΙΧΕ ΧΑΘΕΙ!
+                            Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: advancedAdvice['color'].withOpacity(
+                                    0.5,
+                                  ),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: advancedAdvice['color'].withOpacity(
+                                      0.1,
+                                    ),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    advancedAdvice['icon'],
+                                    color: advancedAdvice['color'],
+                                    size: 32,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      advancedAdvice['msg'],
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        // Κάρτα Σφάλματος Καιρού
+                        Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.5),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.wifi_off,
+                                color: Colors.orange[800],
+                                size: 32,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Αδυναμία φόρτωσης καιρού',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange[900],
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Ελέγξτε τη σύνδεσή σας στο διαδίκτυο.',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.refresh,
+                                  color: Colors.orange[800],
+                                ),
+                                onPressed: () {
+                                  setState(() => isWeatherLoading = true);
+                                  _fetchUnifiedWeather();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // 2. GLOBAL DASHBOARD ΟΙΚΟΝΟΜΙΚΩΝ
+                      Container(
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.15),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Συνολική Εικόνα',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                DropdownButton<String>(
+                                  value: _selectedFilter,
+                                  underline: const SizedBox(),
+                                  icon: const Icon(
+                                    Icons.filter_list,
+                                    color: Colors.green,
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'all',
+                                      child: Text('Όλα τα έτη'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'year',
+                                      child: Text('Φέτος'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'month',
+                                      child: Text('Αυτός ο μήνας'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'custom',
+                                      child: Text('Προσαρμοσμένη...'),
+                                    ),
+                                  ],
+                                  onChanged: (value) async {
+                                    if (value == 'custom') {
+                                      await _pickCustomDateRange();
+                                    } else if (value != null) {
+                                      setState(() {
+                                        _selectedFilter = value;
+                                        _customDateRange = null;
+                                      });
+                                      _refreshGroves();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (_selectedFilter == 'custom' &&
+                                _customDateRange != null)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '${_customDateRange!.start.day}/${_customDateRange!.start.month}/${_customDateRange!.start.year} - ${_customDateRange!.end.day}/${_customDateRange!.end.month}/${_customDateRange!.end.year}',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+
+                            // Οι 3 Κάρτες Οικονομικών
+                            Row(
+                              children: [
+                                _buildFinancialCard(
+                                  'Έσοδα',
+                                  totalAppRevenue,
+                                  Icons.trending_up,
+                                  Colors.green,
+                                ),
+                                _buildFinancialCard(
+                                  'Έξοδα',
+                                  totalAppExpenses,
+                                  Icons.trending_down,
+                                  Colors.red,
+                                ),
+                                _buildFinancialCard(
+                                  'Κέρδος',
+                                  netProfit,
+                                  Icons.account_balance_wallet,
+                                  netProfit >= 0 ? Colors.blue : Colors.orange,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                const SizedBox(height: 80),
+
+                      // 3. ΚΟΥΜΠΙ ΕΡΓΑΣΙΩΝ
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const UpcomingTasksScreen(),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.checklist,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Μελλοντικές Εργασίες',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const Padding(
+                        padding: EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          top: 24.0,
+                          bottom: 8.0,
+                        ),
+                        child: Text(
+                          'Η Περιουσία μου (Χωράφια)',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+
+                      // 4. ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
+                      myGroves.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(
+                                child: Text(
+                                  'Δεν έχετε προσθέσει κανένα χωράφι.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: myGroves.length,
+                              itemBuilder: (context, index) {
+                                final grove = myGroves[index];
+                                return Dismissible(
+                                  key: Key(grove.id),
+                                  direction: DismissDirection.endToStart,
+                                  background: Container(
+                                    color: Colors.red,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                    ),
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    return await showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text("Διαγραφή;"),
+                                        content: const Text(
+                                          "Θα διαγραφούν ΟΛΕΣ οι εργασίες αυτού του χωραφιού!",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text("ΑΚΥΡΩΣΗ"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text(
+                                              "ΔΙΑΓΡΑΦΗ",
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  onDismissed: (direction) async {
+                                    await DatabaseHelper.instance.deleteGrove(
+                                      grove.id,
+                                    );
+                                    _refreshGroves();
+                                  },
+                                  child: Card(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 6,
+                                    ),
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.green[100],
+                                        child: const Icon(
+                                          Icons.nature,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        grove.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '${grove.area} στρέμματα',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      trailing: const Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      onTap: () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                GroveDetailsScreen(
+                                                  grove: grove,
+                                                ),
+                                          ),
+                                        );
+                                        _refreshGroves();
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
               ],
             ),
       floatingActionButton: FloatingActionButton(
