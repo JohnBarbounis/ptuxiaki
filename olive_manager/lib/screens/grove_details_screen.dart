@@ -74,6 +74,60 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     super.dispose();
   }
 
+  Map<String, dynamic> _getNextTaskRecommendation() {
+    if (tasks.isEmpty) {
+      return {
+        'title': 'Ξεκινήστε τις Εργασίες',
+        'msg':
+            'Δεν υπάρχει ιστορικό εργασιών. Προτείνεται ένας έλεγχος της κατάστασης των δέντρων.',
+        'icon': Icons.info_outline,
+      };
+    }
+
+    // Η λίστα tasks είναι ταξινομημένη με την πιο πρόσφατη πρώτη
+    final lastTask = tasks.first;
+    final int month = DateTime.now().month;
+    final String type = lastTask.type.toLowerCase();
+
+    if (type.contains('συγκομιδή') || type.contains('μάζεμα')) {
+      return {
+        'title': 'Επόμενη: Ψεκασμός με Χαλκό',
+        'msg':
+            'Μετά τη συγκομιδή, τα δέντρα έχουν πληγές. Ψεκάστε άμεσα με χαλκό για προστασία από μύκητες.',
+        'time': 'Εντός 7 ημερών από το μάζεμα',
+        'icon': Icons.healing,
+      };
+    }
+
+    if (type.contains('κλάδεμα')) {
+      return {
+        'title': 'Επόμενη: Βασική Λίπανση',
+        'msg':
+            'Το κλάδεμα ολοκληρώθηκε. Ενισχύστε τα δέντρα με λίπασμα για να βοηθήσετε τη νέα βλάστηση.',
+        'time': 'Τέλη Φεβρουαρίου - Μάρτιο',
+        'icon': Icons.science,
+      };
+    }
+
+    if (month >= 6 && month <= 8) {
+      return {
+        'title': 'Επόμενη: Άρδευση (Πότισμα)',
+        'msg':
+            'Λόγω υψηλών θερμοκρασιών, η προτεραιότητα είναι η διατήρηση της υγρασίας για την ανάπτυξη του καρπού.',
+        'time': 'Κάθε 10-15 ημέρες',
+        'icon': Icons.water_drop,
+      };
+    }
+
+    return {
+      'title': 'Επόμενη: Τακτικός Έλεγχος',
+      'msg':
+          'Συνεχίστε την παρακολούθηση του ελαιώνα για τυχόν προσβολές ή ανάγκες λίπανσης.',
+      'time': 'Συνεχώς',
+      'icon': Icons.visibility,
+    };
+  }
+
   void _initializeMapData() {
     polygonPoints = widget.grove.getPolygon();
 
@@ -633,13 +687,14 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
           ],
         ),
       ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
               children: [
                 // ------------------------------------
-                // ΚΑΡΤΕΛΑ 1: ΤΟΠΟΘΕΣΙΑ (Χάρτης & Καιρός)
+                //  ΚΑΡΤΕΛΑ 1: ΤΟΠΟΘΕΣΙΑ (Χάρτης & Καιρός)
                 // ------------------------------------
                 ListView(
                   padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -878,6 +933,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 ],
                               ),
                             ),
+
                           // ------------------------------------
                         ],
                       ),
@@ -1027,122 +1083,214 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       ),
                   ],
                 ),
-
                 // ------------------------------------
                 // ΚΑΡΤΕΛΑ 2: ΕΡΓΑΣΙΕΣ
                 // ------------------------------------
-                ListView.builder(
-                  itemCount: tasks.length,
-                  itemBuilder: (context, index) {
-                    final task = tasks[index];
-                    return Dismissible(
-                      key: Key(task.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      confirmDismiss: (direction) async {
-                        return await showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  title: const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning_amber_rounded,
-                                        color: Colors.red,
+                Column(
+                  children: [
+                    // --- Η ΕΞΥΠΝΗ ΚΑΡΤΑ ΣΤΗΝ ΚΟΡΥΦΗ ---
+                    Builder(
+                      builder: (context) {
+                        final nextTask = _getNextTaskRecommendation();
+                        return Container(
+                          margin: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.purple[50],
+                            border: Border.all(
+                              color: Colors.purple[200]!,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.purple.withOpacity(0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                nextTask['icon'],
+                                color: Colors.purple[800],
+                                size: 30,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nextTask['title'],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.purple[900],
+                                        fontSize: 14,
                                       ),
-                                      SizedBox(width: 8),
-                                      Text('Διαγραφή Εργασίας;'),
-                                    ],
-                                  ),
-                                  content: const Text(
-                                    'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία;',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(false),
-                                      child: const Text(
-                                        'ΑΚΥΡΟ',
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontWeight: FontWeight.bold,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      nextTask['msg'],
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    if (nextTask.containsKey('time'))
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          'Πότε: ${nextTask['time']}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.purple[700],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                      ),
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(true),
-                                      child: const Text(
-                                        'ΔΙΑΓΡΑΦΗ',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
                                   ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    // --- Η ΛΙΣΤΑ ΜΕ ΤΙΣ ΕΡΓΑΣΙΕΣ ---
+                    Expanded(
+                      child: tasks.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Δεν υπάρχουν καταγεγραμμένες εργασίες.',
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: tasks.length,
+                              itemBuilder: (context, index) {
+                                final task = tasks[index];
+                                return Dismissible(
+                                  key: Key(task.id),
+                                  direction: DismissDirection.endToStart,
+                                  background: Container(
+                                    color: Colors.red,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    return await showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              title: const Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.red,
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Text('Διαγραφή Εργασίας;'),
+                                                ],
+                                              ),
+                                              content: const Text(
+                                                'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εργασία;',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.of(
+                                                    context,
+                                                  ).pop(false),
+                                                  child: const Text(
+                                                    'ΑΚΥΡΟ',
+                                                    style: TextStyle(
+                                                      color: Colors.grey,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                  onPressed: () => Navigator.of(
+                                                    context,
+                                                  ).pop(true),
+                                                  child: const Text(
+                                                    'ΔΙΑΓΡΑΦΗ',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ) ??
+                                        false;
+                                  },
+                                  onDismissed: (direction) async {
+                                    await DatabaseHelper.instance.deleteTask(
+                                      task.id,
+                                    );
+                                    _loadData();
+                                  },
+                                  child: ListTile(
+                                    onTap: () =>
+                                        _showTaskDetails(context, task),
+                                    leading: const Icon(
+                                      Icons.agriculture,
+                                      color: Colors.green,
+                                    ),
+                                    title: Text(
+                                      task.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    isThreeLine: true,
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${task.cost.toStringAsFixed(2)} €',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.redAccent,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.grey,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 );
                               },
-                            ) ??
-                            false;
-                      },
-                      onDismissed: (direction) async {
-                        await DatabaseHelper.instance.deleteTask(task.id);
-                        _loadData();
-                      },
-                      child: ListTile(
-                        onTap: () => _showTaskDetails(context, task),
-                        leading: const Icon(
-                          Icons.agriculture,
-                          color: Colors.green,
-                        ),
-                        title: Text(
-                          task.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${task.type}\n${task.date.day}/${task.date.month}/${task.date.year}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        isThreeLine: true,
-
-                        // --- ΝΕΟ: Εμφάνιση του Κόστους δίπλα από το βελάκι ---
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize
-                              .min, // Απαραίτητο για να μην πιάσει όλο το πλάτος το Row
-                          children: [
-                            Text(
-                              '${task.cost.toStringAsFixed(2)} €',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.redAccent,
-                                fontSize: 15,
-                              ),
                             ),
-                            const SizedBox(
-                              width: 4,
-                            ), // Μικρό κενό ανάμεσα στο ποσό και το βελάκι
-                            const Icon(Icons.chevron_right, color: Colors.grey),
-                          ],
-                        ),
-
-                        // ---------------------------------------------------
-                      ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-
                 // ------------------------------------
                 // ΚΑΡΤΕΛΑ 3: ΣΥΓΚΟΜΙΔΗ
                 // ------------------------------------
