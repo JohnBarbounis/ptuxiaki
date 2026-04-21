@@ -80,6 +80,31 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
     });
   }
 
+  // --- ΝΕΑ ΣΥΝΑΡΤΗΣΗ ΓΙΑ ΤΗΝ ΗΜΕΡΟΜΗΝΙΑ ---
+  Future<void> _pickDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000), // Από ποια χρονιά μπορεί να επιλέξει
+      lastDate: DateTime(2100), // Μέχρι ποια χρονιά
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.green[700]!, // Το χρώμα του ημερολογίου
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _oilVolumeController.removeListener(_onInputChanged);
@@ -142,6 +167,22 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
                 _priceController,
                 'Τιμή Πώλησης (€/Λίτρο)',
                 Icons.euro_symbol,
+              ),
+              const SizedBox(height: 15),
+              // --- ΝΕΟ ΠΕΔΙΟ: ΕΠΙΛΟΓΗ ΗΜΕΡΟΜΗΝΙΑΣ ---
+              InkWell(
+                onTap: () => _pickDate(context),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Ημερομηνία Συγκομιδής',
+                    prefixIcon: Icon(Icons.calendar_today),
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Text(
+                    '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 

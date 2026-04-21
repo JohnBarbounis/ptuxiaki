@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../models/harvest.dart';
@@ -14,6 +14,7 @@ import 'add_task_screen.dart';
 import 'add_harvest_screen.dart';
 import 'statistics_screen.dart';
 import 'add_grove_screen.dart';
+import 'dart:math' as math;
 
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;
@@ -72,6 +73,25 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // Υπολογίζει τα γεωγραφικά όρια (Bounds) με βάση τα στρέμματα
+  LatLngBounds _getBounds(LatLng center, double areaInStremmata) {
+    // Αν δεν έχει βάλει στρέμματα, υποθέτουμε 1 στρέμμα για τον χάρτη
+    double area = areaInStremmata > 0 ? areaInStremmata : 1.0;
+
+    // Πλευρά τετραγώνου σε μέτρα + 50% παραπάνω για να έχουμε περιθώριο (padding)
+    double sideInMeters = math.sqrt(area * 1000) * 1.5;
+
+    // Μετατροπή σε μοίρες
+    double latDelta = sideInMeters / 111000;
+    double lngDelta =
+        sideInMeters / (111000 * math.cos(center.latitude * math.pi / 180));
+
+    return LatLngBounds(
+      LatLng(center.latitude - latDelta / 2, center.longitude - lngDelta / 2),
+      LatLng(center.latitude + latDelta / 2, center.longitude + lngDelta / 2),
+    );
   }
 
   Map<String, dynamic> _getNextTaskRecommendation() {
@@ -965,8 +985,15 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                             FlutterMap(
                               mapController: _mapController,
                               options: MapOptions(
-                                initialCenter: mapCenter!,
-                                initialZoom: 16.5,
+                                // --- ΝΕΟ: Αυτόματο scale βάσει ορίων ---
+                                initialCameraFit: CameraFit.bounds(
+                                  bounds: _getBounds(
+                                    mapCenter!,
+                                    widget.grove.area,
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                ),
+                                // -----------------------------------------
                                 interactionOptions: const InteractionOptions(
                                   flags:
                                       InteractiveFlag.all &
@@ -979,6 +1006,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                   userAgentPackageName:
                                       'com.example.olive_manager',
+
+                                  // --- ΝΕΟ: Ενεργοποίηση της Προσωρινής Μνήμης (Caching) ---
+                                  tileProvider: CachedTileProvider(),
+
+                                  // --------------------------------------------------------
                                 ),
                                 if (polygonPoints.isNotEmpty)
                                   PolygonLayer(
@@ -1029,8 +1061,18 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     color: Colors.green,
                                   ),
                                   tooltip: 'Κεντράρισμα στο χωράφι',
-                                  onPressed: () =>
-                                      _mapController.move(mapCenter!, 16.5),
+                                  onPressed: () {
+                                    // --- ΝΕΟ: Το κουμπί κάνει πλέον έξυπνο scale ---
+                                    _mapController.fitCamera(
+                                      CameraFit.bounds(
+                                        bounds: _getBounds(
+                                          mapCenter!,
+                                          widget.grove.area,
+                                        ),
+                                        padding: const EdgeInsets.all(16),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -1718,5 +1760,15 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
               ),
             ),
     );
+  }
+}
+
+// --- ΝΕΑ ΚΛΑΣΗ ΓΙΑ ΑΣΤΡΑΠΙΑΙΟ ΧΑΡΤΗ ΚΑΙ OFFLINE ΧΡΗΣΗ ---
+class CachedTileProvider extends TileProvider {
+  CachedTileProvider();
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    return CachedNetworkImageProvider(getTileUrl(coordinates, options));
   }
 }
