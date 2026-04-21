@@ -287,101 +287,71 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- ΣΥΝΑΡΤΗΣΕΙΣ ΔΕΔΟΜΕΝΩΝ ---
   Future<void> _refreshGroves() async {
-    setState(() => isLoading = true);
-    myGroves = await DatabaseHelper.instance.getAllGroves();
+    // ΔΕΝ βάζουμε isLoading = true εδώ για να μην "ασπρίζει" η οθόνη.
+    // Ο χρήστης συνεχίζει να βλέπει τα παλιά νούμερα για τα ελάχιστα χιλιοστά του δευτερολέπτου που χρειάζεται η βάση.
 
-    totalAppExpenses = await DatabaseHelper.instance.getTotalExpenses(
-      filter: _selectedFilter,
-      start: _customDateRange?.start,
-      end: _customDateRange?.end,
-    );
-    totalAppRevenue = await DatabaseHelper.instance.getTotalRevenue(
+    // 1. Τραβάμε τα νέα δεδομένα σε προσωρινές μεταβλητές
+    final newGroves = await DatabaseHelper.instance.getAllGroves();
+
+    final newExpenses = await DatabaseHelper.instance.getTotalExpenses(
       filter: _selectedFilter,
       start: _customDateRange?.start,
       end: _customDateRange?.end,
     );
 
-    setState(() => isLoading = false);
+    final newRevenue = await DatabaseHelper.instance.getTotalRevenue(
+      filter: _selectedFilter,
+      start: _customDateRange?.start,
+      end: _customDateRange?.end,
+    );
+
+    // 2. Ενημερώνουμε την οθόνη αστραπιαία, μόνο όταν τα έχουμε όλα στα χέρια μας!
+    setState(() {
+      myGroves = newGroves;
+      totalAppExpenses = newExpenses;
+      totalAppRevenue = newRevenue;
+      isLoading =
+          false; // Το κλείνουμε για σιγουριά (σε περίπτωση που ερχόμαστε από το initState)
+    });
   }
 
   Future<void> _pickCustomDateRange() async {
-    DateTime tempStart =
-        _customDateRange?.start ??
-        DateTime.now().subtract(const Duration(days: 30));
-    DateTime tempEnd = _customDateRange?.end ?? DateTime.now();
-    final DateTimeRange? pickedRange = await showDialog<DateTimeRange>(
+    // Παράδειγμα χρησιμοποιώντας το ενσωματωμένο DateRangePicker του Flutter
+    DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Επιλογή Περιόδου'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    title: const Text('Από:'),
-                    subtitle: Text(
-                      '${tempStart.day}/${tempStart.month}/${tempStart.year}',
-                    ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: tempStart,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => tempStart = picked);
-                      }
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Έως:'),
-                    subtitle: Text(
-                      '${tempEnd.day}/${tempEnd.month}/${tempEnd.year}',
-                    ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: tempEnd,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => tempEnd = picked);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: const Text('ΑΚΥΡΩΣΗ'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                    DateTimeRange(start: tempStart, end: tempEnd),
-                  ),
-                  child: const Text('ΕΦΑΡΜΟΓΗ'),
-                ),
-              ],
-            );
-          },
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: _customDateRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.green[800]!, // Χρώμα ημερολογίου
+            ),
+          ),
+          child: child!,
         );
       },
     );
 
-    if (pickedRange != null) {
+    if (picked != null) {
+      DateTime startDate = picked.start;
+      DateTime endDate = picked.end;
+
+      if (startDate.isAfter(endDate)) {
+        final tempDate = startDate;
+        startDate = endDate;
+        endDate = tempDate;
+      }
+      // ----------------------------------------------------------------
+
       setState(() {
         _selectedFilter = 'custom';
-        _customDateRange = pickedRange;
+        // Αποθηκεύουμε το διορθωμένο (ή ήδη σωστό) εύρος
+        _customDateRange = DateTimeRange(start: startDate, end: endDate);
       });
-      _refreshGroves();
-    } else if (_customDateRange == null) {
-      setState(() => _selectedFilter = 'all');
+
+      // Ανανεώνουμε τα δεδομένα στην οθόνη με το νέο φίλτρο
       _refreshGroves();
     }
   }
