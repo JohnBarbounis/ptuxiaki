@@ -303,7 +303,6 @@ CREATE TABLE harvests(
           "WHERE date >= '${start.toIso8601String()}' AND date <= '${endOfDay.toIso8601String()}'";
     }
 
-    // Το SQL Query πολλαπλασιάζει Λίτρα με Τιμή για κάθε γραμμή και τα αθροίζει!
     final result = await db.rawQuery(
       'SELECT SUM(oilVolume * pricePerUnit) as total FROM harvests $whereClause',
     );

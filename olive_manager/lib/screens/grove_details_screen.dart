@@ -32,6 +32,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
   List<Task> tasks = [];
   List<Harvest> harvests = [];
   bool isLoading = false;
+  String _locationName = 'Αναζήτηση περιοχής...';
 
   // Οικονομικά Στοιχεία
   double totalCost = 0.0;
@@ -67,6 +68,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     _initializeMapData();
     _loadData();
     _fetchUnifiedGroveWeather();
+    _fetchLocationName();
   }
 
   @override
@@ -92,6 +94,47 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       LatLng(center.latitude - latDelta / 2, center.longitude - lngDelta / 2),
       LatLng(center.latitude + latDelta / 2, center.longitude + lngDelta / 2),
     );
+  }
+
+  // --- ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Εύρεση ονόματος περιοχής από συντεταγμένες ---
+  Future<void> _fetchLocationName() async {
+    if (widget.grove.lat == null || widget.grove.lng == null) {
+      setState(() => _locationName = 'Άγνωστη Τοποθεσία');
+      return;
+    }
+
+    try {
+      // Χτυπάμε το δωρεάν API του OpenStreetMap
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=${widget.grove.lat}&lon=${widget.grove.lng}&zoom=10',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'OliveManagerApp/1.0'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final address = data['address'];
+
+        // Ψάχνουμε να βρούμε χωριό, πόλη ή επαρχία
+        final area =
+            address['village'] ??
+            address['town'] ??
+            address['city'] ??
+            address['county'] ??
+            'Αγροτική Περιοχή';
+
+        setState(() {
+          _locationName = '${widget.grove.name} ($area)';
+        });
+      } else {
+        setState(() => _locationName = widget.grove.name);
+      }
+    } catch (e) {
+      // Αν δεν υπάρχει ίντερνετ, δείχνουμε απλά το όνομα του χωραφιού
+      setState(() => _locationName = widget.grove.name);
+    }
   }
 
   Map<String, dynamic> _getNextTaskRecommendation() {
@@ -237,7 +280,6 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
   }
 
-  // --- ΣΟΥΠΕΡ Έξυπνη Συμβουλή Καιρού ---
   Map<String, dynamic> _getAdvancedFarmingAdvice() {
     if (currentWeatherCode == null ||
         dailyWeatherCodes.isEmpty ||
@@ -725,6 +767,58 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // --- ΝΕΟ: ΕΞΥΠΝΟ ΤΑΜΠΕΛΑΚΙ ΤΟΠΟΘΕΣΙΑΣ ---
+                          Container(
+                            margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue[200]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  color: Colors.blue[700],
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Πρόγνωση Καιρού για:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.blue[800],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _locationName, // Το όνομα που βρήκε η συνάρτηση
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // ------------------------------------------
+
                           // Το Καρούσελ (Οριζόντια Λίστα) 14 Ημερών παραμένει!
                           Container(
                             height: 90,
@@ -1551,6 +1645,11 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     ),
                                   ),
                                 ],
+                              ),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: Colors.grey,
                               ),
                             ],
                           ),
