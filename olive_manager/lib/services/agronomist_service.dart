@@ -2,6 +2,25 @@
 import 'package:flutter/material.dart';
 
 class AgronomistService {
+  // Μέθοδος για λήψη του ονόματος του μήνα στα ελληνικά
+  static String getMonthNameInGreek(int month) {
+    const monthNames = [
+      'Ιανουάριος',
+      'Φεβρουάριος',
+      'Μάρτιος',
+      'Απρίλιος',
+      'Μάιος',
+      'Ιούνιος',
+      'Ιούλιος',
+      'Αύγουστος',
+      'Σεπτέμβριος',
+      'Οκτώβριος',
+      'Νοέμβριος',
+      'Δεκέμβριος',
+    ];
+    return monthNames[month - 1];
+  }
+
   // Επιστρέφει τη Γεωπονική Συμβουλή ανάλογα με τον τρέχοντα μήνα
   static Map<String, dynamic> getMonthlyAdvice() {
     final int currentMonth = DateTime.now().month;
@@ -10,6 +29,7 @@ class AgronomistService {
       case 1: // Ιανουάριος
       case 2: // Φεβρουάριος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Λήθαργος & Χειμερινό Κλάδεμα',
           'advice':
               'Τα δέντρα βρίσκονται σε λήθαργο. Ιδανική περίοδος για χειμερινό κλάδεμα και εφαρμογή της βασικής λίπανσης στο έδαφος.',
@@ -18,6 +38,7 @@ class AgronomistService {
         };
       case 3: // Μάρτιος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Έκπτυξη Οφθαλμών',
           'advice':
               'Ξεκινά η νέα βλάστηση. Προσοχή σε μυκητολογικές ασθένειες (π.χ. Κυκλοκόνιο) αν υπάρχει αυξημένη υγρασία. Προτείνεται ψεκασμός με χαλκό.',
@@ -26,6 +47,7 @@ class AgronomistService {
         };
       case 4: // Απρίλιος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Σχηματισμός Ανθέων',
           'advice':
               'Τα άνθη σχηματίζονται. Ένας διαφυλλικός ψεκασμός με Βόριο (B) τώρα, θα βοηθήσει σημαντικά στην καρπόδεση τον επόμενο μήνα.',
@@ -34,6 +56,7 @@ class AgronomistService {
         };
       case 5: // Μάιος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Άνθηση & Καρπόδεση',
           'advice':
               'Η πιο κρίσιμη περίοδος! ΑΠΑΓΟΡΕΥΕΤΑΙ αυστηρά η χρήση εντομοκτόνων που βλάπτουν τις μέλισσες. Περιορίστε τις άσκοπες εργασίες.',
@@ -42,6 +65,7 @@ class AgronomistService {
         };
       case 6: // Ιούνιος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Ανάπτυξη Καρπού',
           'advice':
               'Ο καρπός μεγαλώνει. Ξεκινήστε την παρακολούθηση για τη γενιά του Πυρηνοτρήτη. Αν έχετε αρδευτικό, ξεκινήστε τα ποτίσματα.',
@@ -51,6 +75,7 @@ class AgronomistService {
       case 7: // Ιούλιος
       case 8: // Αύγουστος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Σκλήρυνση Πυρήνα & Ελαιογένεση',
           'advice':
               'Το κουκούτσι σκληραίνει και το δέντρο φτιάχνει το λάδι. Τεράστια ανάγκη για νερό! Προσοχή στις δακοσυλλήψεις αν πέσει η θερμοκρασία.',
@@ -60,6 +85,7 @@ class AgronomistService {
       case 9: // Σεπτέμβριος
       case 10: // Οκτώβριος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Ωρίμανση & Αλλαγή Χρώματος',
           'advice':
               'Ο καρπός αλλάζει χρώμα. Υψηλός κίνδυνος για δάκο λόγω φθινοπωρινής δροσιάς. Συνεχίστε τους ελέγχους στις παγίδες σας.',
@@ -69,6 +95,7 @@ class AgronomistService {
       case 11: // Νοέμβριος
       case 12: // Δεκέμβριος
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Συγκομιδή',
           'advice':
               'Περίοδος ελαιοσυλλογής! Μετά το μάζεμα, προτείνεται άμεσα ένας ψεκασμός με χαλκό για να επουλωθούν οι πληγές στα κλαδιά.',
@@ -77,6 +104,7 @@ class AgronomistService {
         };
       default:
         return {
+          'month': getMonthNameInGreek(currentMonth),
           'stage': 'Γενική Φροντίδα',
           'advice': 'Παρακολουθείτε τακτικά τον ελαιώνα σας.',
           'icon': Icons.park,

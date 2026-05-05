@@ -220,7 +220,7 @@ class _ComparisonScreenState extends State<ComparisonScreen>
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           tabs: const [
-            Tab(icon: Icon(Icons.leaderboard), text: 'ΣΥΝΟΛΙΚΑ'),
+            Tab(icon: Icon(Icons.pie_chart), text: 'ΣΥΝΟΛΙΚΑ'),
             Tab(icon: Icon(Icons.calendar_month), text: 'ΑΝΑ ΕΤΟΣ'),
           ],
         ),

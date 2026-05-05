@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ΝΕΟ: Για την αποθήκευση της κατάστασης του Tutorial
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';

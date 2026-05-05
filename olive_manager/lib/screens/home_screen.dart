@@ -421,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           // ΝΕΟ ΚΟΥΜΠΙ: Σύγκριση Χωραφιών
           IconButton(
-            icon: const Icon(Icons.leaderboard, color: Colors.white),
+            icon: const Icon(Icons.pie_chart, color: Colors.white),
             tooltip: 'Σύγκριση Χωραφιών',
             onPressed: () {
               Navigator.push(
@@ -441,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(
-              Icons.assessment,
+              Icons.share,
               color: Colors.white,
             ), // Εικονίδιο Αναφορών
             tooltip: 'Εξαγωγή Δεδομένων',
@@ -724,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : Column(
               children: [
-                // --- ΝΕΟ: ΕΞΥΠΝΗ ΚΑΡΤΑ ΓΕΩΠΟΝΟΥ (Μηνιαία Συμβουλή) ---
+                // ΚΑΡΤΑ ΓΕΩΠΟΝΟΥ (Μηνιαία Συμβουλή) ---
                 Builder(
                   builder: (context) {
                     final advice = AgronomistService.getMonthlyAdvice();
@@ -783,13 +783,30 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Text(
-                                      advice['stage'],
-                                      style: TextStyle(
-                                        color: advice['color'],
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          advice['month'],
+                                          style: TextStyle(
+                                            color: advice['color'],
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '• ${advice['stage']}',
+                                            style: TextStyle(
+                                              color: advice['color'],
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
