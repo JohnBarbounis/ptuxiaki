@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/harvest.dart';
 import '../services/database_helper.dart';
+import '../utils/app_validators.dart'; // ✅ Add validators
 
 class AddHarvestScreen extends StatefulWidget {
   final String groveId;
@@ -157,16 +158,29 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              _buildField(_oilVolumeController, 'Λίτρα Λαδιού', Icons.opacity),
+              _buildField(
+                _oilVolumeController,
+                'Λίτρα Λαδιού',
+                Icons.opacity,
+                customValidator: (value) =>
+                    AppValidators.validateOilVolume(value),
+              ),
               const SizedBox(height: 15),
               _buildField(_weightController, 'Κιλά Ελιάς', Icons.scale),
               const SizedBox(height: 15),
-              _buildField(_acidityController, 'Οξύτητα', Icons.science),
+              _buildField(
+                _acidityController,
+                'Οξύτητα',
+                Icons.science,
+                customValidator: (value) =>
+                    AppValidators.validateAcidity(value),
+              ),
               const SizedBox(height: 15),
               _buildField(
                 _priceController,
                 'Τιμή Πώλησης (€/Λίτρο)',
                 Icons.euro_symbol,
+                customValidator: (value) => AppValidators.validateCost(value),
               ),
               const SizedBox(height: 15),
               // --- ΝΕΟ ΠΕΔΙΟ: ΕΠΙΛΟΓΗ ΗΜΕΡΟΜΗΝΙΑΣ ---
@@ -319,8 +333,9 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
   Widget _buildField(
     TextEditingController controller,
     String label,
-    IconData icon,
-  ) {
+    IconData icon, {
+    String? Function(String?)? customValidator,
+  }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
@@ -329,7 +344,9 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
         border: const OutlineInputBorder(),
       ),
       keyboardType: TextInputType.number,
-      validator: (value) => value!.isEmpty ? 'Συμπληρώστε το πεδίο' : null,
+      validator:
+          customValidator ??
+          (value) => value!.isEmpty ? 'Συμπληρώστε το πεδίο' : null,
     );
   }
 }

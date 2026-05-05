@@ -2,6 +2,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../services/database_helper.dart';
+import 'dart:developer' as developer;
 
 class PdfService {
   // 1. ΙΔΙΩΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Χτίζει το έγγραφο (Κεντρική Λογική)
@@ -232,26 +233,36 @@ class PdfService {
   // ΛΕΙΤΟΥΡΓΙΑ Α: ΕΚΤΥΠΩΣΗ / ΠΡΟΕΠΙΣΚΟΠΗΣΗ
   // ==========================================
   static Future<void> printReport() async {
-    final pdf = await _buildPdfDocument();
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name:
-          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
-    );
+    try {
+      final pdf = await _buildPdfDocument();
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name:
+            'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+      );
+    } catch (e) {
+      developer.log('❌ PDF Print Error: $e', level: 900);
+      rethrow; // Θα δειχθεί error στο UI
+    }
   }
 
   // ==========================================
   // ΛΕΙΤΟΥΡΓΙΑ Β: ΝΕΟ! ΚΟΙΝΟΠΟΙΗΣΗ (GMAIL, DRIVE)
   // ==========================================
   static Future<void> shareReport() async {
-    final pdf = await _buildPdfDocument();
-    final bytes = await pdf.save(); // Μετατροπή σε ψηφιακά δεδομένα
+    try {
+      final pdf = await _buildPdfDocument();
+      final bytes = await pdf.save(); // Μετατροπή σε ψηφιακά δεδομένα
 
-    // Ανοίγει το σύστημα του Android/iOS για Gmail, Drive, Viber κλπ
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename:
-          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
-    );
+      // Ανοίγει το σύστημα του Android/iOS για Gmail, Drive, Viber κλπ
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename:
+            'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+      );
+    } catch (e) {
+      developer.log('❌ PDF Share Error: $e', level: 900);
+      rethrow; // Θα δειχθεί error στο UI
+    }
   }
 }

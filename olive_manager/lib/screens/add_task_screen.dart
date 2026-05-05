@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
+import '../utils/app_validators.dart'; // ✅ Add validators
 
 class AddTaskScreen extends StatefulWidget {
   final String groveId;
@@ -146,7 +147,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   labelText: 'Τίτλος (π.χ. 1ο χέρι ράντισμα)',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => value!.isEmpty ? 'Εισάγετε τίτλο' : null,
+                validator: (value) => AppValidators.validateTaskTitle(value),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -173,7 +174,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                validator: (value) => value!.isEmpty ? 'Εισάγετε κόστος' : null,
+                validator: (value) => AppValidators.validateCost(value),
               ),
               const SizedBox(height: 16),
               TextFormField(

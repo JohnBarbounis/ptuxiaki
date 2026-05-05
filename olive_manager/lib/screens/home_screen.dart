@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use, avoid_print
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +15,8 @@ import '../services/pdf_service.dart';
 import 'calendar_screen.dart';
 import 'comparison_screen.dart';
 import '../services/agronomist_service.dart'; // ΝΕΟ IMPORT
+import '../utils/error_handler.dart'; // ✅ Error handling utilities
+import 'package:connectivity_plus/connectivity_plus.dart'; // ✅ Offline mode support
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -51,109 +55,114 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- ΣΥΝΑΡΤΗΣΕΙΣ ΚΑΙΡΟΥ ---
   Future<void> _fetchUnifiedWeather() async {
-    double lat = 35.3387;
-    double lon = 25.1442;
-    String tempLocation = 'Ηράκλειο (Προεπιλογή)';
-
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (serviceEnabled) {
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-        }
-        if (permission == LocationPermission.always ||
-            permission == LocationPermission.whileInUse) {
-          Position position = await Geolocator.getCurrentPosition().timeout(
-            const Duration(seconds: 5),
-          );
-          lat = position.latitude;
-          lon = position.longitude;
-          tempLocation =
-              'Ηράκλειο'; // Μπορεί να βελτιωθεί με reverse geocoding αργότερα
-        }
-      }
-    } catch (e) {
-      print('GPS Timeout or Error: $e');
-      // Fallback για debug mode (emulator)
-      if (kDebugMode) {
-        lat = 37.9838;
-        lon = 23.7275;
-        tempLocation = 'Αθήνα (Δοκιμή)';
-        print('Using Athens fallback for testing');
-      }
-    }
-
-    try {
-      final geoUrl = Uri.parse(
-        'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lon&localityLanguage=el',
-      );
-      final geoResponse = await http
-          .get(geoUrl)
-          .timeout(const Duration(seconds: 5));
-      if (geoResponse.statusCode == 200) {
-        final geoData = json.decode(geoResponse.body);
-        tempLocation = geoData['city'] ?? geoData['locality'] ?? tempLocation;
-      }
-
-      final weatherUrl = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
-      );
-      final weatherResponse = await http
-          .get(weatherUrl)
-          .timeout(const Duration(seconds: 5));
-
-      if (weatherResponse.statusCode == 200) {
-        final data = json.decode(weatherResponse.body);
+      // ✅ Check internet connectivity first
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity == ConnectivityResult.none) {
         setState(() {
-          currentTemp = data['current_weather']['temperature'];
-          windSpeed = data['current_weather']['windspeed'];
-          currentWeatherCode = data['current_weather']['weathercode'];
+          isWeatherLoading = false;
+          currentTemp = null;
+          windSpeed = null;
+          currentWeatherCode = null;
+          dailyDates = [];
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
 
-          dailyDates = data['daily']['time'];
-          dailyMaxTemps = data['daily']['temperature_2m_max'];
-          dailyMinTemps = data['daily']['temperature_2m_min'];
-          dailyWeatherCodes = data['daily']['weathercode'];
-          locationName = tempLocation;
+      double lat = 35.3387;
+      double lon = 25.1442;
+      String tempLocation = 'Ηράκλειο';
+
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (serviceEnabled) {
+          LocationPermission permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.denied) {
+            permission = await Geolocator.requestPermission();
+          }
+          if (permission == LocationPermission.always ||
+              permission == LocationPermission.whileInUse) {
+            Position position = await Geolocator.getCurrentPosition().timeout(
+              const Duration(seconds: 5),
+            );
+            lat = position.latitude;
+            lon = position.longitude;
+          }
+        }
+      } catch (e) {
+        print('GPS Error: $e');
+      }
+
+      try {
+        final geoUrl = Uri.parse(
+          'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lon&localityLanguage=el',
+        );
+        final geoResponse = await http
+            .get(geoUrl)
+            .timeout(const Duration(seconds: 5));
+        if (geoResponse.statusCode == 200) {
+          final geoData = json.decode(geoResponse.body);
+          tempLocation = geoData['city'] ?? geoData['locality'] ?? tempLocation;
+        }
+
+        final weatherUrl = Uri.parse(
+          'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=14&timezone=auto',
+        );
+        final weatherResponse = await http
+            .get(weatherUrl)
+            .timeout(const Duration(seconds: 5));
+
+        if (weatherResponse.statusCode == 200) {
+          final data = json.decode(weatherResponse.body);
+          setState(() {
+            currentTemp = data['current_weather']['temperature'];
+            windSpeed = data['current_weather']['windspeed'];
+            currentWeatherCode = data['current_weather']['weathercode'];
+
+            dailyDates = data['daily']['time'];
+            dailyMaxTemps = data['daily']['temperature_2m_max'];
+            dailyMinTemps = data['daily']['temperature_2m_min'];
+            dailyWeatherCodes = data['daily']['weathercode'];
+            locationName = tempLocation;
+            isWeatherLoading = false;
+          });
+        } else {
+          throw Exception(
+            'Open-Meteo API returned status ${weatherResponse.statusCode}',
+          );
+        }
+      } catch (e) {
+        // ✅ Show offline message instead of mock data
+        print('API Error: $e');
+        setState(() {
+          currentTemp = null;
+          windSpeed = null;
+          currentWeatherCode = null;
+          dailyDates = [];
           isWeatherLoading = false;
         });
-      } else {
-        throw Exception(
-          'Open-Meteo API returned status ${weatherResponse.statusCode}',
-        );
       }
     } catch (e) {
-      print('API Error: $e - Using fallback test data');
-
-      // Fallback: Mock data for testing when API is unavailable
-      DateTime now = DateTime.now();
-      List<String> mockDates = [];
-      List<double> mockMaxTemps = [];
-      List<double> mockMinTemps = [];
-      List<int> mockWeatherCodes = [];
-
-      for (int i = 0; i < 14; i++) {
-        DateTime date = now.add(Duration(days: i));
-        mockDates.add(
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+      // ✅ Show user-friendly error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorHandler.getApiErrorMessage(e as Exception)),
+            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.red[700],
+          ),
         );
-        mockMaxTemps.add(18.0 + (i % 5)); // Varied temps: 18-22°C
-        mockMinTemps.add(12.0 + (i % 4)); // Varied temps: 12-15°C
-        mockWeatherCodes.add([1, 2, 3, 45, 80][i % 5]); // Varied weather codes
       }
-
-      setState(() {
-        currentTemp = 20.0;
-        windSpeed = 8.0;
-        currentWeatherCode = 2;
-
-        dailyDates = mockDates;
-        dailyMaxTemps = mockMaxTemps;
-        dailyMinTemps = mockMinTemps;
-        dailyWeatherCodes = mockWeatherCodes;
-        locationName = '$tempLocation (Δοκιμαστικά δεδομένα)';
-        isWeatherLoading = false;
-      });
+      setState(() => isWeatherLoading = false);
     }
   }
 
@@ -179,8 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // --- 1. ΑΜΕΣΟΙ ΠΕΡΙΟΡΙΣΜΟΙ (ΣΗΜΕΡΑ) ---
 
-    // Α. Βροχή / Χιόνι / Καταιγίδα σήμερα (Κωδικοί >= 51)
-    if (currentWeatherCode! >= 51) {
+    // ✅ Βροχή / Χιόνι / Καταιγίδα σήμερα (Κωδικοί >= 51)
+    if ((currentWeatherCode ?? 0) >= 51) {
       return {
         'icon': Icons.umbrella,
         'color': Colors.blue,
@@ -189,13 +198,13 @@ class _HomeScreenState extends State<HomeScreen> {
       };
     }
 
-    // Β. Δυνατός άνεμος σήμερα
-    if (windSpeed! > 15.0) {
+    // ✅ Δυνατός άνεμος σήμερα
+    if ((windSpeed ?? 0.0) > 15.0) {
       return {
         'icon': Icons.air,
         'color': Colors.orange,
         'msg':
-            'Δυνατός άνεμος σήμερα (${windSpeed}km/h). Αυστηρό απαγορευτικό για ψεκασμό λόγω αερομεταφοράς!',
+            'Δυνατός άνεμος σήμερα (${windSpeed ?? 0}km/h). Αυστηρό απαγορευτικό για ψεκασμό λόγω αερομεταφοράς!',
       };
     }
 
@@ -207,19 +216,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Ξεκινάμε από το index 1 (Αύριο) έως το 7
     for (int i = 1; i <= 7 && i < dailyWeatherCodes.length; i++) {
-      // Ψάχνουμε τον πρώτο Παγετό (< 2°C)
-      if (dailyMinTemps[i] < 2.0 && upcomingFrostIndex == null) {
+      // ✅ Ψάχνουμε τον πρώτο Παγετό (< 2°C)
+      if (i < dailyMinTemps.length &&
+          dailyMinTemps[i] is num &&
+          (dailyMinTemps[i] as num) < 2.0 &&
+          upcomingFrostIndex == null) {
         upcomingFrostIndex = i;
       }
 
-      // Ψάχνουμε την πρώτη μέρα με Βροχή/Καταιγίδα (>= 51)
-      if (dailyWeatherCodes[i] >= 51 && upcomingRainIndex == null) {
+      // ✅ Ψάχνουμε την πρώτη μέρα με Βροχή/Καταιγίδα (>= 51)
+      if (i < dailyWeatherCodes.length &&
+          dailyWeatherCodes[i] is int &&
+          (dailyWeatherCodes[i] as int) >= 51 &&
+          upcomingRainIndex == null) {
         upcomingRainIndex = i;
       }
 
-      // Ψάχνουμε τον πρώτο Καύσωνα (> 35°C) - Απαιτεί να έχεις τη λίστα dailyMaxTemps
+      // ✅ Ψάχνουμε τον πρώτο Καύσωνα (> 35°C)
       if (dailyMaxTemps.isNotEmpty &&
-          dailyMaxTemps[i] > 35.0 &&
+          i < dailyMaxTemps.length &&
+          dailyMaxTemps[i] is num &&
+          (dailyMaxTemps[i] as num) > 35.0 &&
           upcomingHeatwaveIndex == null) {
         upcomingHeatwaveIndex = i;
       }
@@ -228,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // --- 3. ΑΠΟΦΑΣΕΙΣ ΒΑΣΕΙ ΜΕΛΛΟΝΤΙΚΩΝ ΣΥΝΘΗΚΩΝ (Ιεραρχικά) ---
 
     // Προτεραιότητα 1: Παγετός (Καταστρέφει τα δέντρα αν κλαδευτούν)
-    if (upcomingFrostIndex != null) {
+    if (upcomingFrostIndex != null && upcomingFrostIndex < dailyDates.length) {
       return {
         'icon': Icons.ac_unit,
         'color': Colors.blueGrey,
@@ -238,7 +255,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // Προτεραιότητα 2: Καύσωνας (Υδατικό στρες για το δέντρο)
-    if (upcomingHeatwaveIndex != null) {
+    if (upcomingHeatwaveIndex != null &&
+        upcomingHeatwaveIndex < dailyDates.length) {
       return {
         'icon': Icons.local_fire_department,
         'color': Colors.redAccent,
@@ -248,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // Προτεραιότητα 3: Βροχή (Ευκαιρία για λίπανση)
-    if (upcomingRainIndex != null) {
+    if (upcomingRainIndex != null && upcomingRainIndex < dailyDates.length) {
       if (upcomingRainIndex == 1) {
         // Αν η βροχή είναι αύριο
         return {
@@ -869,13 +887,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                 top: 16.0,
                                 bottom: 8.0,
                               ),
-                              child: Text(
-                                "Καιρός Περιοχής: $locationName",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.blueGrey,
-                                ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "Καιρός Περιοχής: $locationName",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.blueGrey,
+                                      ),
+                                    ),
+                                  ),
+                                  // ✅ NEW: Refresh button for weather
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.refresh,
+                                      size: 20,
+                                      color: Colors.blueGrey,
+                                    ),
+                                    tooltip: 'Ανανέωση Καιρού',
+                                    onPressed: () async {
+                                      await _fetchUnifiedWeather();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('✅ Δεδομένα καιρού ενημερώθηκαν'),
+                                            duration: Duration(seconds: 2),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                             SizedBox(
@@ -1202,15 +1247,61 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       // 4. ΛΙΣΤΑ ΧΩΡΑΦΙΩΝ
                       myGroves.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Center(
-                                child: Text(
-                                  'Δεν έχετε προσθέσει κανένα χωράφι.',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.landscape_outlined,
+                                      size: 80,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Δεν έχετε χωράφια ακόμα',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Προσθέστε το πρώτο σας χωράφι για να ξεκινήσετε',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const AddGroveScreen(),
+                                        ),
+                                      ).then((_) => _refreshGroves()),
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Προσθήκη Χωραφιού'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green[700],
+                                        foregroundColor: Colors.white,
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                              vertical: 12,
+                                            ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )

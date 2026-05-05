@@ -25,15 +25,26 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1, // ΕΚΔΟΣΗ 1.0
+      version: 2, // ✅ ΕΚΔΟΣΗ 2.0 (προστέθηκε treeCount)
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
   }
 
-  // --- ΕΞΥΠΝΗ ΣΥΝΑΡΤΗΣΗ ΑΝΑΒΑΘΜΙΣΗΣ ---
+  // --- ✅ ΕΞΥΠΝΗ ΣΥΝΑΡΤΗΣΗ ΑΝΑΒΑΘΜΙΣΗΣ (Database Migration) ---
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    //
+    // Migration από version 1 → 2: Προσθήκη treeCount column
+    if (oldVersion < 2 && newVersion >= 2) {
+      try {
+        await db.execute(
+          'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
+        );
+        print('✅ Database migration: treeCount column added successfully');
+      } catch (e) {
+        // Το column ήδη υπάρχει ή άλλο σφάλμα - δεν είναι θανάσιμο
+        print('ℹ️ Migration notice: $e');
+      }
+    }
   }
 
   // Δημιουργία των πινάκων με SQL
@@ -112,15 +123,16 @@ CREATE TABLE harvests(
     );
   }
 
-  // Ανάγνωση όλων των Χωραφιών
+  // ✅ Ανάγνωση όλων των Χωραφιών (με error handling)
   Future<List<OliveGrove>> getAllGroves() async {
-    final db = await instance.database;
-    final result = await db.query(
-      'groves',
-    ); // Φέρνει τα πάντα από τον πίνακα 'groves'
-
-    // Μετατρέπουμε τα Maps της βάσης σε λίστα από αντικείμενα OliveGrove
-    return result.map((json) => OliveGrove.fromMap(json)).toList();
+    try {
+      final db = await instance.database;
+      final result = await db.query('groves');
+      return result.map((json) => OliveGrove.fromMap(json)).toList();
+    } catch (e) {
+      print('❌ Σφάλμα φόρτωσης χωραφιών: $e');
+      return []; // Επιστρέφουμε άδεια λίστα αντί να κράσουμε
+    }
   }
 
   // Λειτουργίες για Εργασίες (Tasks)

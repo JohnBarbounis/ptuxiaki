@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
+import '../utils/app_validators.dart'; // ✅ Add validators
 
 class AddGroveScreen extends StatefulWidget {
   final OliveGrove? existingGrove;
@@ -344,7 +345,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.nature),
               ),
-              validator: (value) => value!.isEmpty ? 'Εισάγετε όνομα' : null,
+              validator: (value) => AppValidators.validateGroveName(value),
             ),
             const SizedBox(height: 16),
 
@@ -361,7 +362,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    validator: (value) => value!.isEmpty ? 'Κενό' : null,
+                    validator: (value) => AppValidators.validateArea(value),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -374,7 +375,8 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                       prefixIcon: Icon(Icons.park),
                     ),
                     keyboardType: TextInputType.number,
-                    validator: (value) => value!.isEmpty ? 'Κενό' : null,
+                    validator: (value) =>
+                        AppValidators.validateTreeCount(value),
                   ),
                 ),
               ],

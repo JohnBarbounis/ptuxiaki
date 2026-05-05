@@ -3,7 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  connectivity_plus
   geolocator_windows
+  objectbox_flutter_libs
   permission_handler_windows
   printing
   share_plus
