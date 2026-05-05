@@ -30,53 +30,53 @@ class ErrorHandler {
 
   // ✅ Get user-friendly message for database errors
   static String getDatabaseErrorMessage(Exception e) {
-    print('❌ Database Error: ${e.runtimeType} - $e');
+    print('Database Error: ${e.runtimeType} - $e');
 
     if (e.toString().contains('database is locked')) {
-      return '🔒 Η βάση δεδομένων είναι κλειδωμένη. Δοκιμήστε ξανά.';
+      return 'Η βάση δεδομένων είναι κλειδωμένη. Δοκιμήστε ξανά.';
     }
 
     if (e.toString().contains('no such table')) {
-      return '❌ Σφάλμα δομής δεδομένων. Επαναφέρετε την εφαρμογή.';
+      return 'Σφάλμα δομής δεδομένων. Επαναφέρετε την εφαρμογή.';
     }
 
     if (e.toString().contains('UNIQUE constraint failed')) {
-      return '⚠️ Αυτό το χωράφι ή δεδομένο υπάρχει ήδη.';
+      return 'Αυτό το χωράφι ή δεδομένο υπάρχει ήδη.';
     }
 
-    return '⚠️ Σφάλμα αποθήκευσης. Δοκιμήστε ξανά.';
+    return 'Σφάλμα αποθήκευσης. Δοκιμήστε ξανά.';
   }
 
   // ✅ Get user-friendly message for location/GPS errors
   static String getLocationErrorMessage(Exception e) {
-    print('❌ Location Error: ${e.runtimeType} - $e');
+    print('Location Error: ${e.runtimeType} - $e');
 
     if (e.toString().contains('Location services are disabled')) {
-      return '📍 GPS απενεργοποιημένο. Ενεργοποιήστε το στις Ρυθμίσεις.';
+      return 'GPS απενεργοποιημένο. Ενεργοποιήστε το στις Ρυθμίσεις.';
     }
 
     if (e.toString().contains('Permission denied')) {
-      return '🚫 Δεν έχετε δώσει άδεια πρόσβασης GPS.';
+      return 'Δεν έχετε δώσει άδεια πρόσβασης GPS.';
     }
 
     if (e.toString().contains('timeout') || e is TimeoutException) {
-      return '⏱️ GPS timeout. Δοκιμήστε ξανά σε ανοιχτό χώρο.';
+      return 'GPS timeout. Δοκιμήστε ξανά σε ανοιχτό χώρο.';
     }
 
-    return '📍 Σφάλμα προσδιορισμού θέσης. Δοκιμήστε ξανά.';
+    return 'Σφάλμα προσδιορισμού θέσης. Δοκιμήστε ξανά.';
   }
 
   // ✅ Get user-friendly message for permission errors
   static String getPermissionErrorMessage(String permissionType) {
     switch (permissionType) {
       case 'location':
-        return '📍 Χρειάζεστε άδεια πρόσβασης στο GPS.';
+        return 'Χρειάζεστε άδεια πρόσβασης στο GPS.';
       case 'storage':
-        return '💾 Χρειάζεστε άδεια πρόσβασης στη μνήμη.';
+        return 'Χρειάζεστε άδεια πρόσβασης στη μνήμη.';
       case 'camera':
-        return '📷 Χρειάζεστε άδεια πρόσβασης στη κάμερα.';
+        return 'Χρειάζεστε άδεια πρόσβασης στη κάμερα.';
       default:
-        return '🔐 Χρειάζεται άδεια πρόσβασης.';
+        return 'Χρειάζεται άδεια πρόσβασης.';
     }
   }
 
@@ -102,7 +102,7 @@ class ErrorHandler {
       }
       return defaultValue;
     } catch (e) {
-      print('⚠️ Parse error for $value: $e');
+      print('Parse error for $value: $e');
       return defaultValue;
     }
   }
@@ -116,7 +116,7 @@ class ErrorHandler {
       if (value is String) return int.parse(value);
       return defaultValue;
     } catch (e) {
-      print('⚠️ Parse error for $value: $e');
+      print('Parse error for $value: $e');
       return defaultValue;
     }
   }
@@ -129,7 +129,7 @@ class ErrorHandler {
       if (value is String) return DateTime.parse(value);
       return defaultValue ?? DateTime.now();
     } catch (e) {
-      print('⚠️ DateTime parse error for $value: $e');
+      print('DateTime parse error for $value: $e');
       return defaultValue ?? DateTime.now();
     }
   }

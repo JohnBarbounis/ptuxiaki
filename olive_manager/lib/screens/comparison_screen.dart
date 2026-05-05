@@ -162,19 +162,19 @@ class _ComparisonScreenState extends State<ComparisonScreen>
 
     if (roi >= 100) {
       badgeColor = Colors.green[700]!;
-      text = 'Άριστη (${roi.toStringAsFixed(0)}%)';
+      text = '⭐ Εξαιρετικό (${roi.toStringAsFixed(0)}%)';
       icon = Icons.star;
     } else if (roi >= 20) {
       badgeColor = Colors.blue[600]!;
-      text = 'Καλή (${roi.toStringAsFixed(0)}%)';
+      text = '👍 Καλή (${roi.toStringAsFixed(0)}%)';
       icon = Icons.thumb_up;
     } else if (roi >= 0) {
       badgeColor = Colors.orange[600]!;
-      text = 'Οριακή (${roi.toStringAsFixed(0)}%)';
+      text = '⚠️ Οριακή (${roi.toStringAsFixed(0)}%)';
       icon = Icons.warning_amber;
     } else {
       badgeColor = Colors.red[700]!;
-      text = 'Ζημιά (${roi.toStringAsFixed(0)}%)';
+      text = '❌ Ζημιά (${roi.toStringAsFixed(0)}%)';
       icon = Icons.trending_down;
     }
 

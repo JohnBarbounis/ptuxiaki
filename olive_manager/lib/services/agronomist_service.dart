@@ -1,24 +1,11 @@
 // Αρχείο: lib/services/agronomist_service.dart
 import 'package:flutter/material.dart';
+import '../utils/text_formatting.dart';
 
 class AgronomistService {
-  // Μέθοδος για λήψη του ονόματος του μήνα στα ελληνικά
+  // ✅ Use centralized Greek month name function
   static String getMonthNameInGreek(int month) {
-    const monthNames = [
-      'Ιανουάριος',
-      'Φεβρουάριος',
-      'Μάρτιος',
-      'Απρίλιος',
-      'Μάιος',
-      'Ιούνιος',
-      'Ιούλιος',
-      'Αύγουστος',
-      'Σεπτέμβριος',
-      'Οκτώβριος',
-      'Νοέμβριος',
-      'Δεκέμβριος',
-    ];
-    return monthNames[month - 1];
+    return TextFormatting.getGreekMonthName(month);
   }
 
   // Επιστρέφει τη Γεωπονική Συμβουλή ανάλογα με τον τρέχοντα μήνα

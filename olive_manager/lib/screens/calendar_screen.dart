@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
+import '../utils/text_formatting.dart'; // ✅ Text formatting utilities
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -126,7 +126,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                 const SizedBox(height: 8.0),
                 Text(
-                  'Εργασίες για: ${DateFormat('dd/MM/yyyy').format(_selectedDay!)}',
+                  'Εργασίες για: ${TextFormatting.formatDateGreek(_selectedDay!)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

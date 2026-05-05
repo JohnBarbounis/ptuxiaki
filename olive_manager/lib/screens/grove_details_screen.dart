@@ -15,8 +15,9 @@ import 'add_harvest_screen.dart';
 import 'statistics_screen.dart';
 import 'add_grove_screen.dart';
 import 'dart:math' as math;
-import '../utils/error_handler.dart'; // ✅ Error handling utilities
-import 'package:connectivity_plus/connectivity_plus.dart'; // ✅ Offline mode support
+import '../utils/error_handler.dart';
+import '../utils/weather_icons.dart'; // ✅ Weather icon mapping
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class GroveDetailsScreen extends StatefulWidget {
   final OliveGrove grove;
@@ -520,12 +521,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
   }
 
+  // ✅ Use centralized weather icon mapping
   IconData _getWeatherIcon(int code) {
-    if (code <= 3) return Icons.wb_sunny;
-    if (code <= 48) return Icons.cloud;
-    if (code <= 67) return Icons.water_drop;
-    if (code <= 77) return Icons.ac_unit;
-    return Icons.flash_on;
+    return WeatherIcons.getWeatherIcon(code);
   }
 
   Future<void> _navigateToMap() async {

@@ -14,9 +14,10 @@ import 'upcoming_tasks_screen.dart';
 import '../services/pdf_service.dart';
 import 'calendar_screen.dart';
 import 'comparison_screen.dart';
-import '../services/agronomist_service.dart'; // ΝΕΟ IMPORT
-import '../utils/error_handler.dart'; // ✅ Error handling utilities
-import 'package:connectivity_plus/connectivity_plus.dart'; // ✅ Offline mode support
+import '../services/agronomist_service.dart';
+import '../utils/error_handler.dart';
+import '../utils/weather_icons.dart'; // ✅ Weather icon mapping
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,7 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.'),
+              content: Text(
+                '📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.',
+              ),
               duration: Duration(seconds: 3),
               backgroundColor: Colors.orange,
             ),
@@ -295,12 +298,9 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
+  // ✅ Use centralized weather icon mapping
   IconData _getWeatherIcon(int code) {
-    if (code <= 3) return Icons.wb_sunny;
-    if (code <= 48) return Icons.cloud;
-    if (code <= 67) return Icons.water_drop;
-    if (code <= 77) return Icons.ac_unit;
-    return Icons.flash_on;
+    return WeatherIcons.getWeatherIcon(code);
   }
 
   // --- ΣΥΝΑΡΤΗΣΕΙΣ ΔΕΔΟΜΕΝΩΝ ---
@@ -910,9 +910,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onPressed: () async {
                                       await _fetchUnifiedWeather();
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('✅ Δεδομένα καιρού ενημερώθηκαν'),
+                                            content: Text(
+                                              '✅ Δεδομένα καιρού ενημερώθηκαν',
+                                            ),
                                             duration: Duration(seconds: 2),
                                             backgroundColor: Colors.green,
                                           ),
@@ -1290,14 +1294,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.green[700],
                                         foregroundColor: Colors.white,
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 24,
-                                              vertical: 12,
-                                            ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 12,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                       ),
                                     ),

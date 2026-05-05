@@ -20,7 +20,7 @@ class ConnectivityService {
       final result = await _connectivity.checkConnectivity();
       return result != ConnectivityResult.none;
     } catch (e) {
-      print('❌ Connectivity check error: $e');
+      print('Connectivity check error: $e');
       return false;
     }
   }
