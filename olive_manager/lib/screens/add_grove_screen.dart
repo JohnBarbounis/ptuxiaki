@@ -144,7 +144,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 24),
@@ -237,7 +237,10 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     }
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 0,
+      ),
     );
   }
 
@@ -320,7 +323,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         await DatabaseHelper.instance.updateGrove(grove);
       }
 
-      Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     }
   }
 
@@ -452,7 +457,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                           polygons: [
                             Polygon(
                               points: _selectedBoundaries,
-                              color: Colors.green.withOpacity(0.4),
+                              color: Colors.green.withValues(alpha: 0.4),
                               borderColor: Colors.green[900]!,
                               borderStrokeWidth: 3.0,
                             ),

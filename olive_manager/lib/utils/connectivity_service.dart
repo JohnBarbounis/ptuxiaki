@@ -2,6 +2,7 @@
 // ✅ Offline mode management service
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'app_logger.dart';
 
 class ConnectivityService {
   static final ConnectivityService _instance = ConnectivityService._internal();
@@ -18,9 +19,9 @@ class ConnectivityService {
   Future<bool> hasInternetConnection() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      return result != ConnectivityResult.none;
+      return !result.contains(ConnectivityResult.none);
     } catch (e) {
-      print('Connectivity check error: $e');
+      AppLogger.warning('Connectivity check error: $e');
       return false;
     }
   }

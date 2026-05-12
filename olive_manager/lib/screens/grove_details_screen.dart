@@ -17,6 +17,7 @@ import 'add_grove_screen.dart';
 import 'dart:math' as math;
 import '../utils/error_handler.dart';
 import '../utils/weather_icons.dart'; // ✅ Weather icon mapping
+import '../utils/app_logger.dart'; // ✅ Centralized logging
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class GroveDetailsScreen extends StatefulWidget {
@@ -90,7 +91,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     try {
       // 1. Έλεγχος σύνδεσης internet
       final connectivity = await Connectivity().checkConnectivity();
-      final isOnline = connectivity != ConnectivityResult.none;
+      final isOnline = !connectivity.contains(ConnectivityResult.none);
 
       // 2. Για τώρα, υποθέτουμε ότι αν έχει ανοίξει το app μια φορά, έχει cached tiles
       // (Η flutter_map_tile_caching φορτώνει αυτόματα τα tiles)
@@ -102,7 +103,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
         hasOfflineTiles = hasTiles;
       });
     } catch (e) {
-      print('Offline map check error: $e');
+      AppLogger.warning('Offline map check error: $e');
       setState(() {
         hasInternetConnection = true;
         hasOfflineTiles = false;
@@ -165,7 +166,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       }
     } catch (e) {
       // ✅ Error handling - but don't crash
-      print('Location lookup error: $e');
+      AppLogger.warning('Location lookup error: $e');
       if (mounted) {
         setState(() => _locationName = widget.grove.name);
       }
@@ -279,7 +280,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       });
     } catch (e) {
       // ✅ Show user-friendly error message
-      print('Error loading grove data: $e');
+      AppLogger.error('Error loading grove data', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -305,7 +306,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     try {
       // ✅ Check internet connectivity first
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         setState(() {
           isWeatherLoading = false;
           currentTemp = null;
@@ -345,7 +346,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
       }
     } catch (e) {
       // ✅ Show user-friendly error message
-      print('Weather fetch error: $e');
+      AppLogger.error('Weather fetch error', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -793,7 +794,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                       AddGroveScreen(existingGrove: widget.grove),
                 ),
               );
-              if (result == true) Navigator.pop(context, true);
+              if (result == true && mounted) Navigator.pop(context, true);
             },
           ),
           IconButton(
@@ -1256,7 +1257,9 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                       polygons: [
                                         Polygon(
                                           points: polygonPoints,
-                                          color: Colors.green.withOpacity(0.4),
+                                          color: Colors.green.withValues(
+                                            alpha: 0.4,
+                                          ),
                                           borderColor: Colors.green[900]!,
                                           borderStrokeWidth: 3,
                                         ),
@@ -1326,7 +1329,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                 right: 8,
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     shape: BoxShape.circle,
                                     boxShadow: const [
                                       BoxShadow(

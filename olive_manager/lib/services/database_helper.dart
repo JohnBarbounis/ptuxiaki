@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../models/harvest.dart';
+import '../utils/app_logger.dart';
 
 class DatabaseHelper {
   // Δημιουργούμε ένα Singleton
@@ -39,10 +40,12 @@ class DatabaseHelper {
         await db.execute(
           'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
         );
-        print('✅ Database migration: treeCount column added successfully');
+        AppLogger.info(
+          'Database migration: treeCount column added successfully',
+        );
       } catch (e) {
         // Το column ήδη υπάρχει ή άλλο σφάλμα - δεν είναι θανάσιμο
-        print('ℹ️ Migration notice: $e');
+        AppLogger.info('Migration notice: $e');
       }
     }
   }
@@ -130,7 +133,7 @@ CREATE TABLE harvests(
       final result = await db.query('groves');
       return result.map((json) => OliveGrove.fromMap(json)).toList();
     } catch (e) {
-      print('❌ Σφάλμα φόρτωσης χωραφιών: $e');
+      AppLogger.error('Σφάλμα φόρτωσης χωραφιών', e);
       return []; // Επιστρέφουμε άδεια λίστα αντί να κράσουμε
     }
   }

@@ -97,7 +97,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         StartingDayOfWeek.monday, // Η εβδομάδα ξεκινάει Δευτέρα
                     calendarStyle: CalendarStyle(
                       todayDecoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.5),
+                        color: Colors.green.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                       selectedDecoration: const BoxDecoration(

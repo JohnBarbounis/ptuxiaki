@@ -138,7 +138,9 @@ class _AddHarvestScreenState extends State<AddHarvestScreen> {
           harvest,
         ); // Χρειάζεται αυτή η μέθοδος στο DatabaseHelper
       }
-      Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     }
   }
 

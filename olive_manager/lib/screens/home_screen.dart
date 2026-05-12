@@ -1,8 +1,5 @@
-// ignore_for_file: deprecated_member_use, avoid_print
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import '../services/backup_service.dart';
@@ -17,6 +14,7 @@ import 'comparison_screen.dart';
 import '../services/agronomist_service.dart';
 import '../utils/error_handler.dart';
 import '../utils/weather_icons.dart'; // ✅ Weather icon mapping
+import '../utils/app_logger.dart'; // ✅ Centralized logging
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -59,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       // ✅ Check internet connectivity first
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         setState(() {
           isWeatherLoading = false;
           currentTemp = null;
@@ -67,17 +65,18 @@ class _HomeScreenState extends State<HomeScreen> {
           currentWeatherCode = null;
           dailyDates = [];
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.',
-              ),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.orange,
+        // Check mounted BEFORE using context
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              '📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.',
             ),
-          );
-        }
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
         return;
       }
 
@@ -102,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } catch (e) {
-        print('GPS Error: $e');
+        AppLogger.warning('GPS Error: $e');
       }
 
       try {
@@ -145,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } catch (e) {
         // ✅ Show offline message instead of mock data
-        print('API Error: $e');
+        AppLogger.warning('API Error: $e');
         setState(() {
           currentTemp = null;
           windSpeed = null;
@@ -156,15 +155,16 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       // ✅ Show user-friendly error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ErrorHandler.getApiErrorMessage(e as Exception)),
-            duration: const Duration(seconds: 4),
-            backgroundColor: Colors.red[700],
-          ),
-        );
-      }
+      // Check mounted BEFORE using context
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(ErrorHandler.getApiErrorMessage(e as Exception)),
+          duration: const Duration(seconds: 4),
+          backgroundColor: Colors.red[700],
+        ),
+      );
       setState(() => isWeatherLoading = false);
     }
   }
@@ -353,6 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (picked != null) {
+      if (!mounted) return;
       DateTime startDate = picked.start;
       DateTime endDate = picked.end;
 
@@ -378,6 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (context) => const AddGroveScreen()));
+    if (!mounted) return;
     if (result == true) _refreshGroves();
   }
 
@@ -392,9 +394,9 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.5), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
         ),
         child: Column(
           children: [
@@ -643,7 +645,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             bool success =
                                 await BackupService.saveJsonLocally();
 
-                            // 2. Χρησιμοποιούμε τον αποθηκευμένο messenger (χωρίς το mounted!)
+                            if (!mounted) return;
+                            // 2. Χρησιμοποιούμε τον αποθηκευμένο messenger μόνο αν mounted
                             if (success) {
                               messenger.showSnackBar(
                                 const SnackBar(
@@ -683,6 +686,8 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () async {
                 Navigator.pop(context);
 
+                // Check mounted before using context in showDialog
+                if (!mounted) return;
                 // Προειδοποίηση πριν τη διαγραφή της τωρινής βάσης
                 bool confirm =
                     await showDialog(
@@ -715,7 +720,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (confirm) {
                   bool success =
                       await BackupService.importDataFromJson(); // Καλεί το JSON Restore
-                  if (success && mounted) {
+                  if (!mounted) return;
+                  if (success) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Τα δεδομένα επαναφέρθηκαν επιτυχώς!'),
@@ -723,7 +729,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                     _refreshGroves(); // Ανανεώνουμε την αρχική οθόνη για να δείξει τα νέα δεδομένα
-                  } else if (mounted) {
+                  } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Αποτυχία επαναφοράς.'),
@@ -752,7 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            advice['color'].withOpacity(0.1),
+                            advice['color'].withValues(alpha: 0.1),
                             Colors.white,
                           ],
                           begin: Alignment.topLeft,
@@ -760,7 +766,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: advice['color'].withOpacity(0.5),
+                          color: advice['color'].withValues(alpha: 0.5),
                           width: 1.5,
                         ),
                         boxShadow: const [
@@ -779,7 +785,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: advice['color'].withOpacity(0.2),
+                                  color: advice['color'].withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -909,19 +915,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                     tooltip: 'Ανανέωση Καιρού',
                                     onPressed: () async {
                                       await _fetchUnifiedWeather();
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              '✅ Δεδομένα καιρού ενημερώθηκαν',
-                                            ),
-                                            duration: Duration(seconds: 2),
-                                            backgroundColor: Colors.green,
+                                      if (!mounted) return;
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            '✅ Δεδομένα καιρού ενημερώθηκαν',
                                           ),
-                                        );
-                                      }
+                                          duration: Duration(seconds: 2),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
                                     },
                                   ),
                                 ],
@@ -1004,15 +1010,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: advancedAdvice['color'].withOpacity(
-                                    0.5,
+                                  color: advancedAdvice['color'].withValues(
+                                    alpha: 0.5,
                                   ),
                                   width: 1.5,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: advancedAdvice['color'].withOpacity(
-                                      0.1,
+                                    color: advancedAdvice['color'].withValues(
+                                      alpha: 0.1,
                                     ),
                                     blurRadius: 6,
                                     offset: const Offset(0, 3),
@@ -1056,7 +1062,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.orange[50],
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.orange.withOpacity(0.5),
+                              color: Colors.orange.withValues(alpha: 0.5),
                             ),
                           ),
                           child: Row(
@@ -1107,7 +1113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.15),
+                              color: Colors.grey.withValues(alpha: 0.15),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             ),
@@ -1363,6 +1369,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     await DatabaseHelper.instance.deleteGrove(
                                       grove.id,
                                     );
+                                    if (!mounted) return;
                                     _refreshGroves();
                                   },
                                   child: Card(
@@ -1408,6 +1415,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ),
                                           ),
                                         );
+                                        if (!mounted) return;
                                         _refreshGroves();
                                       },
                                     ),

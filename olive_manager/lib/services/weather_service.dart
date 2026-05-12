@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import '../constants/app_constants.dart';
+import '../utils/app_logger.dart';
 
 class WeatherService {
   // Singleton pattern
@@ -40,7 +41,7 @@ class WeatherService {
         return (lat: position.latitude, lng: position.longitude);
       }
     } catch (e) {
-      print('GPS Error: $e');
+      AppLogger.warning('GPS Error: $e');
     }
 
     // Fallback to default location
@@ -85,7 +86,7 @@ class WeatherService {
             AppConstants.defaultLocationName;
       }
     } catch (e) {
-      print('Location Error: $e');
+      AppLogger.warning('Location Error: $e');
     }
 
     return AppConstants.defaultLocationName;
@@ -113,7 +114,7 @@ class WeatherService {
         );
       }
     } catch (e) {
-      print('Weather API Error: $e');
+      AppLogger.error('Weather API Error', e);
       rethrow;
     }
   }

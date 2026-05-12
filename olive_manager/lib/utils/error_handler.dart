@@ -3,11 +3,12 @@
 
 import 'dart:io';
 import 'dart:async';
+import 'app_logger.dart';
 
 class ErrorHandler {
   // ✅ Get user-friendly error message based on exception type
   static String getApiErrorMessage(Exception e) {
-    print('❌ API Error: ${e.runtimeType} - $e');
+    AppLogger.error('API Error: ${e.runtimeType}', e);
 
     if (e is SocketException) {
       return 'Σφάλμα σύνδεσης. Ελέγξτε το Internet.';
@@ -30,7 +31,7 @@ class ErrorHandler {
 
   // ✅ Get user-friendly message for database errors
   static String getDatabaseErrorMessage(Exception e) {
-    print('Database Error: ${e.runtimeType} - $e');
+    AppLogger.error('Database Error: ${e.runtimeType}', e);
 
     if (e.toString().contains('database is locked')) {
       return 'Η βάση δεδομένων είναι κλειδωμένη. Δοκιμήστε ξανά.';
@@ -49,7 +50,7 @@ class ErrorHandler {
 
   // ✅ Get user-friendly message for location/GPS errors
   static String getLocationErrorMessage(Exception e) {
-    print('Location Error: ${e.runtimeType} - $e');
+    AppLogger.error('Location Error: ${e.runtimeType}', e);
 
     if (e.toString().contains('Location services are disabled')) {
       return 'GPS απενεργοποιημένο. Ενεργοποιήστε το στις Ρυθμίσεις.';
@@ -102,7 +103,7 @@ class ErrorHandler {
       }
       return defaultValue;
     } catch (e) {
-      print('Parse error for $value: $e');
+      AppLogger.warning('Parse error for $value: $e');
       return defaultValue;
     }
   }
@@ -116,21 +117,8 @@ class ErrorHandler {
       if (value is String) return int.parse(value);
       return defaultValue;
     } catch (e) {
-      print('Parse error for $value: $e');
+      AppLogger.warning('Parse error for $value: $e');
       return defaultValue;
-    }
-  }
-
-  // ✅ Safe DateTime parsing
-  static DateTime safeParseDatetime(dynamic value, {DateTime? defaultValue}) {
-    try {
-      if (value == null) return defaultValue ?? DateTime.now();
-      if (value is DateTime) return value;
-      if (value is String) return DateTime.parse(value);
-      return defaultValue ?? DateTime.now();
-    } catch (e) {
-      print('DateTime parse error for $value: $e');
-      return defaultValue ?? DateTime.now();
     }
   }
 }
