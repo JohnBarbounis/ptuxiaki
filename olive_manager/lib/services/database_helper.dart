@@ -26,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // ✅ ΕΚΔΟΣΗ 2.0 (προστέθηκε treeCount)
+      version: 3, // ✅ ΕΚΔΟΣΗ 3.0 (προστέθηκε nextTaskId)
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -48,6 +48,19 @@ class DatabaseHelper {
         AppLogger.info('Migration notice: $e');
       }
     }
+
+    // Migration από version 2 → 3: Προσθήκη nextTaskId column
+    if (oldVersion < 3 && newVersion >= 3) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN nextTaskId TEXT');
+        AppLogger.info(
+          'Database migration: nextTaskId column added successfully',
+        );
+      } catch (e) {
+        // Το column ήδη υπάρχει ή άλλο σφάλμα - δεν είναι θανάσιμο
+        AppLogger.info('Migration notice: $e');
+      }
+    }
   }
 
   // Δημιουργία των πινάκων με SQL
@@ -62,6 +75,7 @@ class DatabaseHelper {
       date TEXT NOT NULL,
       cost REAL NOT NULL,
       notes TEXT,
+      nextTaskId TEXT,
       FOREIGN KEY (groveId) REFERENCES groves (id) ON DELETE CASCADE
     )
     ''');

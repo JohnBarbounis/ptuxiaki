@@ -6,6 +6,8 @@ class Task {
   final DateTime date; // Πότε έγινε
   final double cost; // Πόσο κόστισε
   final String notes; // Έξτρα σημειώσεις
+  final String?
+  nextTaskId; // ID της μελλοντικής επαναληπτικής εργασίας (αν υπάρχει)
 
   Task({
     required this.id,
@@ -15,6 +17,7 @@ class Task {
     required this.date,
     this.cost = 0.0,
     this.notes = '',
+    this.nextTaskId,
   });
 
   // Μετατροπή σε Map για την SQLite
@@ -28,6 +31,7 @@ class Task {
       'date': date.toIso8601String(),
       'cost': cost,
       'notes': notes,
+      'nextTaskId': nextTaskId,
     };
   }
 
@@ -40,7 +44,8 @@ class Task {
       type: map['type'],
       date: DateTime.parse(map['date']),
       cost: map['cost'],
-      notes: map['notes'],
+      notes: map['notes'] ?? '',
+      nextTaskId: map['nextTaskId'],
     );
   }
 }

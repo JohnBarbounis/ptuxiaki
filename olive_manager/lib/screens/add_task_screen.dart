@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/tasks.dart';
 import '../services/database_helper.dart';
 import '../utils/app_validators.dart'; // ✅ Add validators
+import '../utils/app_logger.dart'; // ✅ Centralized logging
 
 class AddTaskScreen extends StatefulWidget {
   final String groveId;
@@ -66,33 +67,39 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         'Κλάδεμα'; // Βάλε τον δικό σου default τύπο εδώ
     _selectedPreset = _presets[2]; // Initialize with a default preset
     _selectedDate = widget.existingTask?.date ?? DateTime.now();
+
+    // ✅ Αν υπάρχει nextTaskId, σημαίνει ότι είχαμε επιλέξει επανάληψη
+    if (widget.existingTask?.nextTaskId != null) {
+      _scheduleNext = true;
+    }
   }
 
   Future<void> _saveTask() async {
     if (_formKey.currentState!.validate()) {
       // 1. Δημιουργούμε το αντικείμενο της εργασίας
-      final task = Task(
-        // Αν υπάρχει ήδη η εργασία, κρατάμε το παλιό ID. Αλλιώς, φτιάχνουμε νέο.
-        id:
-            widget.existingTask?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
-        groveId: widget.groveId,
-        title: _titleController.text,
-        type: _selectedType,
-        date:
-            _selectedDate, // ΣΗΜΑΝΤΙΚΟ: Βάζουμε την επιλεγμένη ημερομηνία, όχι απλά την τωρινή!
-        cost:
-            double.tryParse(_costController.text.replaceAll(',', '.')) ??
-            0.0, // Ασφαλής μετατροπή
-        notes: _notesController.text,
-      );
+      late Task task;
+      late String? newNextTaskId;
 
-      // 2. Ελέγχουμε αν πρόκειται για ΝΕΑ ΠΡΟΣΘΗΚΗ ή ΕΠΕΞΕΡΓΑΣΙΑ
       if (widget.existingTask == null) {
         // --- Α. ΝΕΑ ΕΡΓΑΣΙΑ ---
+        String taskId = DateTime.now().millisecondsSinceEpoch.toString();
+        newNextTaskId = null;
+
+        task = Task(
+          id: taskId,
+          groveId: widget.groveId,
+          title: _titleController.text,
+          type: _selectedType,
+          date: _selectedDate,
+          cost:
+              double.tryParse(_costController.text.replaceAll(',', '.')) ?? 0.0,
+          notes: _notesController.text,
+          nextTaskId: null,
+        );
+
         await DatabaseHelper.instance.insertTask(task);
 
-        // Αν έχουμε επιλέξει να προγραμματίσουμε την επόμενη εργασία (Γίνεται ΜΟΝΟ σε νέες εργασίες)
+        // Αν έχουμε επιλέξει να προγραμματίσουμε την επόμενη εργασία
         if (_scheduleNext) {
           int daysToAdd = _selectedPreset['days'];
           if (daysToAdd == 0) {
@@ -100,22 +107,104 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           }
 
           final nextDate = DateTime.now().add(Duration(days: daysToAdd));
+          final futureTaskId = nextDate.millisecondsSinceEpoch.toString();
 
           final futureTask = Task(
-            id: nextDate.millisecondsSinceEpoch
-                .toString(), // Νέο μοναδικό ID στο μέλλον
+            id: futureTaskId,
             groveId: widget.groveId,
             title: '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}',
             type: _selectedType,
             date: nextDate,
-            cost: 0.0, // Η μελλοντική εργασία δεν έχει ακόμα κόστος
+            cost: 0.0,
             notes:
                 'Αυτόματη υπενθύμιση. Μην ξεχάσετε να ενημερώσετε το κόστος όταν την ολοκληρώσετε.',
+            nextTaskId: null,
           );
           await DatabaseHelper.instance.insertTask(futureTask);
+
+          // Ενημερώνουμε την τρέχουσα εργασία να δείχνει στη μελλοντική
+          newNextTaskId = futureTaskId;
+          final updatedTask = Task(
+            id: taskId,
+            groveId: widget.groveId,
+            title: _titleController.text,
+            type: _selectedType,
+            date: _selectedDate,
+            cost:
+                double.tryParse(_costController.text.replaceAll(',', '.')) ??
+                0.0,
+            notes: _notesController.text,
+            nextTaskId: futureTaskId,
+          );
+          await DatabaseHelper.instance.updateTask(updatedTask);
         }
       } else {
         // --- Β. ΕΠΕΞΕΡΓΑΣΙΑ ΥΠΑΡΧΟΥΣΑΣ ΕΡΓΑΣΙΑΣ ---
+        task = Task(
+          id: widget.existingTask!.id,
+          groveId: widget.groveId,
+          title: _titleController.text,
+          type: _selectedType,
+          date: _selectedDate,
+          cost:
+              double.tryParse(_costController.text.replaceAll(',', '.')) ?? 0.0,
+          notes: _notesController.text,
+          nextTaskId: widget.existingTask!.nextTaskId,
+        );
+
+        // Αν υπάρχει παλιά μελλοντική εργασία, τη διαγράφουμε
+        if (widget.existingTask!.nextTaskId != null) {
+          try {
+            await DatabaseHelper.instance.deleteTask(
+              widget.existingTask!.nextTaskId!,
+            );
+          } catch (e) {
+            AppLogger.warning('Failed to delete old future task: $e');
+          }
+        }
+
+        // Αν θέλουμε νέα επανάληψη, δημιουργούμε νέα μελλοντική εργασία
+        if (_scheduleNext) {
+          int daysToAdd = _selectedPreset['days'];
+          if (daysToAdd == 0) {
+            daysToAdd = int.tryParse(_customDaysController.text) ?? 7;
+          }
+
+          final nextDate = DateTime.now().add(Duration(days: daysToAdd));
+          final futureTaskId = nextDate.millisecondsSinceEpoch.toString();
+
+          final futureTask = Task(
+            id: futureTaskId,
+            groveId: widget.groveId,
+            title: '⏳ ΕΠΑΝΑΛΗΨΗ: ${_titleController.text}',
+            type: _selectedType,
+            date: nextDate,
+            cost: 0.0,
+            notes:
+                'Αυτόματη υπενθύμιση. Μην ξεχάσετε να ενημερώσετε το κόστος όταν την ολοκληρώσετε.',
+            nextTaskId: null,
+          );
+          await DatabaseHelper.instance.insertTask(futureTask);
+
+          // Ενημερώνουμε τη nextTaskId
+          newNextTaskId = futureTaskId;
+        } else {
+          // Αν δεν θέλουμε επανάληψη, μηδενίζουμε το nextTaskId
+          newNextTaskId = null;
+        }
+
+        // Ενημερώνουμε την εργασία με το νέο nextTaskId
+        task = Task(
+          id: widget.existingTask!.id,
+          groveId: widget.groveId,
+          title: _titleController.text,
+          type: _selectedType,
+          date: _selectedDate,
+          cost:
+              double.tryParse(_costController.text.replaceAll(',', '.')) ?? 0.0,
+          notes: _notesController.text,
+          nextTaskId: newNextTaskId,
+        );
         await DatabaseHelper.instance.updateTask(task);
       }
 

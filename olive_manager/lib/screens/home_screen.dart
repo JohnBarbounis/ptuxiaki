@@ -748,131 +748,134 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : Column(
               children: [
-                // ΚΑΡΤΑ ΓΕΩΠΟΝΟΥ (Μηνιαία Συμβουλή) ---
-                Builder(
-                  builder: (context) {
-                    final advice = AgronomistService.getMonthlyAdvice();
-                    return Container(
-                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            advice['color'].withValues(alpha: 0.1),
-                            Colors.white,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: advice['color'].withValues(alpha: 0.5),
-                          width: 1.5,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: advice['color'].withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  advice['icon'],
-                                  color: advice['color'],
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Γεωπονικό Στάδιο Μήνα',
-                                      style: TextStyle(
-                                        color: Colors.grey[700],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          advice['month'],
-                                          style: TextStyle(
-                                            color: advice['color'],
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            '• ${advice['stage']}',
-                                            style: TextStyle(
-                                              color: advice['color'],
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(),
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.lightbulb,
-                                color: Colors.amber,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  advice['advice'],
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                // --- ΕΔΩ ΣΥΝΕΧΙΖΕΙ Ο ΚΩΔΙΚΑΣ ΣΟΥ (Η λίστα με τα χωράφια) ---
                 Expanded(
                   child: ListView(
                     children: [
-                      // 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ 14 ΗΜΕΡΩΝ
+                      // ΚΑΡΤΑ ΓΕΩΠΟΝΟΥ (Μηνιαία Συμβουλή) ---
+                      Builder(
+                        builder: (context) {
+                          final advice = AgronomistService.getMonthlyAdvice();
+                          return Container(
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  advice['color'].withValues(alpha: 0.1),
+                                  Colors.white,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: advice['color'].withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: advice['color'].withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        advice['icon'],
+                                        color: advice['color'],
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Γεωπονικό Στάδιο Μήνα',
+                                            style: TextStyle(
+                                              color: Colors.grey[700],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                advice['month'],
+                                                style: TextStyle(
+                                                  color: advice['color'],
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  '• ${advice['stage']}',
+                                                  style: TextStyle(
+                                                    color: advice['color'],
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Divider(),
+                                ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.lightbulb,
+                                      color: Colors.amber,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        advice['advice'],
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          height: 1.4,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+
+                      // --- 1. ΠΡΟΓΝΩΣΗ ΚΑΙΡΟΥ 14 ΗΜΕΡΩΝ ---
                       if (isWeatherLoading)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 40.0),
