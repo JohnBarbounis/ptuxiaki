@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/olive_grove.dart';
 import '../services/database_helper.dart';
+import '../utils/app_validators.dart'; // ✅ Add validators
 
 class AddGroveScreen extends StatefulWidget {
   final OliveGrove? existingGrove;
@@ -23,12 +25,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
   late TextEditingController _areaController;
   late TextEditingController _treeController;
 
-  // Μεταβλητές Χάρτη
   List<LatLng> _selectedBoundaries = [];
   final MapController _mapController = MapController();
   bool _isLocating = false;
-
-  // ΝΕΟ: Μεταβλητή για να αποθηκεύουμε την ακριβή θέση του χρήστη
   LatLng? _currentLocation;
 
   @override
@@ -47,9 +46,133 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     if (widget.existingGrove != null) {
       _selectedBoundaries = widget.existingGrove!.getPolygon();
     }
+
+    // ΝΕΟ: Ελέγχουμε αν είναι η 1η φορά μόλις χτιστεί η οθόνη
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowTutorial();
+    });
   }
 
-  // --- ΜΑΘΗΜΑΤΙΚΟΣ ΑΛΓΟΡΙΘΜΟΣ (Σφαιρικό Εμβαδόν) ---
+  // --- ΝΕΑ ΛΟΓΙΚΗ: TUTORIAL ONBOARDING ---
+  Future<void> _checkAndShowTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Διαβάζουμε αν το έχει δει. Αν δεν υπάρχει η ρύθμιση, επιστρέφει false (άρα είναι η 1η φορά)
+    bool hasSeenTutorial = prefs.getBool('has_seen_map_tutorial') ?? false;
+
+    if (!hasSeenTutorial) {
+      _showMapTutorial(); // Δείχνουμε το tutorial
+      await prefs.setBool(
+        'has_seen_map_tutorial',
+        true,
+      ); // Το αποθηκεύουμε για να μην ξαναβγεί
+    }
+  }
+
+  void _showMapTutorial() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.school, color: Colors.blue, size: 28),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Πώς λειτουργεί ο Χάρτης;',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTutorialStep(
+              Icons.touch_app,
+              Colors.green,
+              'Σχεδιασμός με το χέρι',
+              'Πατήστε στις γωνίες του χωραφιού σας στον χάρτη για να δημιουργήσετε τα σύνορα.',
+            ),
+            const SizedBox(height: 12),
+            _buildTutorialStep(
+              Icons.my_location,
+              Colors.orange,
+              'Περπάτημα με GPS',
+              'Είστε στο χωράφι; Χρησιμοποιήστε την πορτοκαλί "Πινέζα" για να βάζετε σημεία περπατώντας!',
+            ),
+            const SizedBox(height: 12),
+            _buildTutorialStep(
+              Icons.auto_awesome,
+              Colors.purple,
+              'Αυτόματος Υπολογισμός',
+              'Τα στρέμματα υπολογίζονται αυτόματα μόλις κλείσετε το σχήμα (3+ σημεία)!',
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[700],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'ΤΟ ΚΑΤΑΛΑΒΑ!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTutorialStep(
+    IconData icon,
+    Color color,
+    String title,
+    String description,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                description,
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  // ----------------------------------------
+
   double _calculatePolygonAreaInStremmata(List<LatLng> points) {
     if (points.length < 3) return 0.0;
     const double earthRadius = 6378137.0;
@@ -98,7 +221,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     });
   }
 
-  // --- ΛΕΙΤΟΥΡΓΙΕΣ GPS ---
   Future<Position> _getGpsPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) throw Exception('Το GPS είναι κλειστό.');
@@ -115,7 +237,10 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     }
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 0,
+      ),
     );
   }
 
@@ -124,12 +249,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     try {
       Position position = await _getGpsPosition();
       LatLng pos = LatLng(position.latitude, position.longitude);
-
-      setState(() {
-        _currentLocation =
-            pos; // Αποθηκεύουμε τη θέση για να φανεί το μπλε στίγμα
-      });
-
+      setState(() => _currentLocation = pos);
       _mapController.move(pos, 17.5);
     } catch (e) {
       _showError(e.toString());
@@ -143,9 +263,8 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     try {
       Position position = await _getGpsPosition();
       LatLng currentPos = LatLng(position.latitude, position.longitude);
-
       setState(() {
-        _currentLocation = currentPos; // Δείχνουμε το μπλε στίγμα και εδώ!
+        _currentLocation = currentPos;
         _selectedBoundaries.add(currentPos);
         _updateAreaLive();
         _mapController.move(currentPos, 17.5);
@@ -168,7 +287,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
     }
   }
 
-  // --- ΑΠΟΘΗΚΕΥΣΗ ΣΤΗ ΒΑΣΗ ---
   void _saveGrove() async {
     if (_formKey.currentState!.validate()) {
       String? boundariesJson;
@@ -193,7 +311,7 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         area: double.parse(safeAreaText),
-        treeCount: int.parse(_treeController.text), // ΑΠΟΘΗΚΕΥΣΗ
+        treeCount: int.tryParse(_treeController.text) ?? 0,
         lat: centerLat,
         lng: centerLng,
         boundaries: boundariesJson,
@@ -205,7 +323,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
         await DatabaseHelper.instance.updateGrove(grove);
       }
 
-      Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     }
   }
 
@@ -230,30 +350,41 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.nature),
               ),
-              validator: (value) => value!.isEmpty ? 'Εισάγετε όνομα' : null,
+              validator: (value) => AppValidators.validateGroveName(value),
             ),
             const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _areaController,
-              decoration: InputDecoration(
-                labelText: 'Στρέμματα',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.square_foot),
-                suffixText: 'Στρέμματα',
-                helperText: _selectedBoundaries.isNotEmpty
-                    ? 'Το εμβαδόν υπολογίστηκε από τον χάρτη (επεξεργάσιμο)'
-                    : null,
-                helperStyle: TextStyle(
-                  color: Colors.green[700],
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _areaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Στρέμματα',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.square_foot),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (value) => AppValidators.validateArea(value),
+                  ),
                 ),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: (value) =>
-                  value!.isEmpty ? 'Εισάγετε στρέμματα' : null,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _treeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Δέντρα',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.park),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) =>
+                        AppValidators.validateTreeCount(value),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -270,15 +401,38 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
             ),
             const SizedBox(height: 24),
 
-            const Text(
-              'Σχεδιασμός Συνόρων (Προαιρετικό)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            // --- ΝΕΟ WIDGET: ΤΟ TIP / ΟΔΗΓΟΣ ΧΑΡΤΗ ---
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb, color: Colors.amber[700], size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'TIP: Ζωγραφίστε τα σύνορα στον χάρτη για να υπολογιστούν τα στρέμματα αυτόματα!',
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed:
+                        _showMapTutorial, // Ξανανοίγει το tutorial αν το πατήσει
+                    child: const Text(
+                      'ΟΔΗΓΙΕΣ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+
+            // --- Ο ΧΑΡΤΗΣ ΜΑΣ ---
             Container(
               height: 380,
               decoration: BoxDecoration(
@@ -316,17 +470,14 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                           polygons: [
                             Polygon(
                               points: _selectedBoundaries,
-                              color: Colors.green.withOpacity(0.4),
+                              color: Colors.green.withValues(alpha: 0.4),
                               borderColor: Colors.green[900]!,
                               borderStrokeWidth: 3.0,
-                              //     isFilled: true,
                             ),
                           ],
                         ),
-                      // --- ΕΝΗΜΕΡΩΜΕΝΟ MARKER LAYER ---
                       MarkerLayer(
                         markers: [
-                          // 1. Οι κόκκινες πινέζες των συνόρων
                           ..._selectedBoundaries.map(
                             (point) => Marker(
                               point: point,
@@ -340,8 +491,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                               ),
                             ),
                           ),
-
-                          // 2. ΝΕΟ: Το Μπλε Στίγμα της τοποθεσίας του χρήστη (Μπαίνει τελευταίο για να είναι από πάνω)
                           if (_currentLocation != null)
                             Marker(
                               point: _currentLocation!,
@@ -446,26 +595,6 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                       ],
                     ),
                   ),
-
-                  if (_selectedBoundaries.isEmpty)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'Πατήστε στον χάρτη',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),

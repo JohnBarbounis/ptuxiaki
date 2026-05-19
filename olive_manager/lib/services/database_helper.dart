@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/olive_grove.dart';
 import '../models/tasks.dart';
 import '../models/harvest.dart';
+import '../utils/app_logger.dart';
 
 class DatabaseHelper {
   // Δημιουργούμε ένα Singleton
@@ -18,25 +19,47 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // --- 1. ΑΡΧΙΚΟΠΟΙΗΣΗ ΒΑΣΗΣ ---
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     return await openDatabase(
       path,
-      version: 2, // ΑΝΕΒΑΖΟΥΜΕ ΤΗΝ ΕΚΔΟΣΗ
+      version: 3, // ✅ ΕΚΔΟΣΗ 3.0 (προστέθηκε nextTaskId)
       onCreate: _createDB,
-      onUpgrade: _onUpgrade, // ΠΡΟΣΘΗΚΗ ΑΝΑΒΑΘΜΙΣΗΣ //
+      onUpgrade: _onUpgrade,
     );
   }
 
-  // Αυτή η συνάρτηση τρέχει αν η εφαρμογή βρει παλιά βάση (Version 1)
+  // --- ✅ ΕΞΥΠΝΗ ΣΥΝΑΡΤΗΣΗ ΑΝΑΒΑΘΜΙΣΗΣ (Database Migration) ---
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Προσθέτουμε τη στήλη treeCount στην υπάρχουσα βάση
-      await db.execute(
-        'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
-      );
+    // Migration από version 1 → 2: Προσθήκη treeCount column
+    if (oldVersion < 2 && newVersion >= 2) {
+      try {
+        await db.execute(
+          'ALTER TABLE groves ADD COLUMN treeCount INTEGER DEFAULT 0',
+        );
+        AppLogger.info(
+          'Database migration: treeCount column added successfully',
+        );
+      } catch (e) {
+        // Το column ήδη υπάρχει ή άλλο σφάλμα - δεν είναι θανάσιμο
+        AppLogger.info('Migration notice: $e');
+      }
+    }
+
+    // Migration από version 2 → 3: Προσθήκη nextTaskId column
+    if (oldVersion < 3 && newVersion >= 3) {
+      try {
+        await db.execute('ALTER TABLE tasks ADD COLUMN nextTaskId TEXT');
+        AppLogger.info(
+          'Database migration: nextTaskId column added successfully',
+        );
+      } catch (e) {
+        // Το column ήδη υπάρχει ή άλλο σφάλμα - δεν είναι θανάσιμο
+        AppLogger.info('Migration notice: $e');
+      }
     }
   }
 
@@ -52,6 +75,7 @@ class DatabaseHelper {
       date TEXT NOT NULL,
       cost REAL NOT NULL,
       notes TEXT,
+      nextTaskId TEXT,
       FOREIGN KEY (groveId) REFERENCES groves (id) ON DELETE CASCADE
     )
     ''');
@@ -106,15 +130,26 @@ CREATE TABLE harvests(
     );
   }
 
-  // Ανάγνωση όλων των Χωραφιών
-  Future<List<OliveGrove>> getAllGroves() async {
-    final db = await instance.database;
-    final result = await db.query(
-      'groves',
-    ); // Φέρνει τα πάντα από τον πίνακα 'groves'
+  Future<int> updateTask(Task task) async {
+    Database db = await instance.database;
+    return await db.update(
+      'tasks',
+      task.toMap(),
+      where: 'id = ?',
+      whereArgs: [task.id],
+    );
+  }
 
-    // Μετατρέπουμε τα Maps της βάσης σε λίστα από αντικείμενα OliveGrove
-    return result.map((json) => OliveGrove.fromMap(json)).toList();
+  // ✅ Ανάγνωση όλων των Χωραφιών (με error handling)
+  Future<List<OliveGrove>> getAllGroves() async {
+    try {
+      final db = await instance.database;
+      final result = await db.query('groves');
+      return result.map((json) => OliveGrove.fromMap(json)).toList();
+    } catch (e) {
+      AppLogger.error('Σφάλμα φόρτωσης χωραφιών', e);
+      return []; // Επιστρέφουμε άδεια λίστα αντί να κράσουμε
+    }
   }
 
   // Λειτουργίες για Εργασίες (Tasks)
@@ -297,7 +332,6 @@ CREATE TABLE harvests(
           "WHERE date >= '${start.toIso8601String()}' AND date <= '${endOfDay.toIso8601String()}'";
     }
 
-    // Το SQL Query πολλαπλασιάζει Λίτρα με Τιμή για κάθε γραμμή και τα αθροίζει!
     final result = await db.rawQuery(
       'SELECT SUM(oilVolume * pricePerUnit) as total FROM harvests $whereClause',
     );

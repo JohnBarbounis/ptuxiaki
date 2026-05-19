@@ -46,7 +46,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     Map<String, double> costs = {};
     double total = 0.0;
-
     for (var task in tasks) {
       if (task.cost > 0) {
         costs[task.type] = (costs[task.type] ?? 0) + task.cost;

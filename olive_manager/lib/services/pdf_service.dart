@@ -2,6 +2,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../services/database_helper.dart';
+import 'dart:developer' as developer;
 
 class PdfService {
   // 1. ΙΔΙΩΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Χτίζει το έγγραφο (Κεντρική Λογική)
@@ -47,7 +48,9 @@ class PdfService {
       }
 
       double profit = revenue - cost;
-      double yieldPerStremma = area > 0 ? (oil / area) : 0.0;
+      // double yieldPerStremma = area > 0 ? (oil / area) : 0.0;
+      int trees = g['treeCount'] != null ? g['treeCount'] as int : 0;
+      double oilPerTree = trees > 0 ? (oil / trees) : 0.0;
 
       globalExpenses += cost;
       globalRevenue += revenue;
@@ -56,10 +59,11 @@ class PdfService {
       tableData.add([
         name,
         '${area.toStringAsFixed(1)} Στρ.',
+        '$trees', // ΝΕΟ: Εμφάνιση Αριθμού Δέντρων
         '${cost.toStringAsFixed(2)} €',
         '${revenue.toStringAsFixed(2)} €',
         '${profit.toStringAsFixed(2)} €',
-        '${yieldPerStremma.toStringAsFixed(1)} L/Στρ.',
+        '${oilPerTree.toStringAsFixed(1)} L', // ΝΕΟ: Αλλάξαμε την απόδοση σε Λίτρα ανά Δέντρο!
       ]);
     }
 
@@ -157,11 +161,12 @@ class PdfService {
               headers: [
                 'Χωράφι',
                 'Στρέμματα',
+                'Δέντρα',
                 'Έξοδα',
                 'Έσοδα',
                 'Κέρδος',
-                'Απόδοση',
-              ],
+                'L/Δέντρο',
+              ], // Ανανεωμένα Headers
               data: tableData,
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               headerStyle: pw.TextStyle(
@@ -175,10 +180,11 @@ class PdfService {
               cellAlignments: {
                 0: pw.Alignment.centerLeft,
                 1: pw.Alignment.center,
-                2: pw.Alignment.centerRight,
+                2: pw.Alignment.center, // Στοίχιση για τα δέντρα
                 3: pw.Alignment.centerRight,
                 4: pw.Alignment.centerRight,
-                5: pw.Alignment.center,
+                5: pw.Alignment.centerRight,
+                6: pw.Alignment.center, // Στοίχιση για το L/Δέντρο
               },
               oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey50),
             ),
@@ -227,26 +233,36 @@ class PdfService {
   // ΛΕΙΤΟΥΡΓΙΑ Α: ΕΚΤΥΠΩΣΗ / ΠΡΟΕΠΙΣΚΟΠΗΣΗ
   // ==========================================
   static Future<void> printReport() async {
-    final pdf = await _buildPdfDocument();
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name:
-          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
-    );
+    try {
+      final pdf = await _buildPdfDocument();
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name:
+            'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+      );
+    } catch (e) {
+      developer.log('[ERROR] PDF Print Error: $e', level: 900);
+      rethrow; // Θα δειχθεί error στο UI
+    }
   }
 
   // ==========================================
   // ΛΕΙΤΟΥΡΓΙΑ Β: ΝΕΟ! ΚΟΙΝΟΠΟΙΗΣΗ (GMAIL, DRIVE)
   // ==========================================
   static Future<void> shareReport() async {
-    final pdf = await _buildPdfDocument();
-    final bytes = await pdf.save(); // Μετατροπή σε ψηφιακά δεδομένα
+    try {
+      final pdf = await _buildPdfDocument();
+      final bytes = await pdf.save(); // Μετατροπή σε ψηφιακά δεδομένα
 
-    // Ανοίγει το σύστημα του Android/iOS για Gmail, Drive, Viber κλπ
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename:
-          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
-    );
+      // Ανοίγει το σύστημα του Android/iOS για Gmail, Drive, Viber κλπ
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename:
+            'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
+      );
+    } catch (e) {
+      developer.log('[ERROR] PDF Share Error: $e', level: 900);
+      rethrow; // Θα δειχθεί error στο UI
+    }
   }
 }
