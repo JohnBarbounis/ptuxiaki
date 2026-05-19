@@ -241,7 +241,7 @@ class PdfService {
             'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
       );
     } catch (e) {
-      developer.log('❌ PDF Print Error: $e', level: 900);
+      developer.log('[ERROR] PDF Print Error: $e', level: 900);
       rethrow; // Θα δειχθεί error στο UI
     }
   }
@@ -261,7 +261,7 @@ class PdfService {
             'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.pdf',
       );
     } catch (e) {
-      developer.log('❌ PDF Share Error: $e', level: 900);
+      developer.log('[ERROR] PDF Share Error: $e', level: 900);
       rethrow; // Θα δειχθεί error στο UI
     }
   }

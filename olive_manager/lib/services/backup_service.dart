@@ -337,9 +337,15 @@ class BackupService {
       // ==========================================
       // ΦΥΛΛΟ 2 & 3: Ιστορικό Εργασιών & Συγκομιδών
       // ==========================================
+      // Δημιουργούμε Map groveId -> name για αναζήτηση
+      Map<String, String> groveNameMap = {};
+      for (var g in groves) {
+        groveNameMap[g['id'].toString()] = g['name'].toString();
+      }
+
       Sheet sheetTasks = excel['Ιστορικό Εργασιών'];
       List<String> taskHeaders = [
-        'ID Χωραφιού',
+        'Χωράφι',
         'Τίτλος Εργασίας',
         'Τύπος',
         'Ημερομηνία',
@@ -354,8 +360,9 @@ class BackupService {
         sheetTasks.setColumnWidth(i, 18.0);
       }
       for (var t in tasks) {
+        String groveName = groveNameMap[t['groveId'].toString()] ?? 'Άγνωστο';
         sheetTasks.appendRow([
-          TextCellValue(t['groveId'].toString()),
+          TextCellValue(groveName),
           TextCellValue(t['title'].toString()),
           TextCellValue(t['type'].toString()),
           TextCellValue(t['date'].toString().split('T')[0]),
@@ -365,7 +372,7 @@ class BackupService {
 
       Sheet sheetHarvests = excel['Ιστορικό Συγκομιδών'];
       List<String> harvestHeaders = [
-        'ID Χωραφιού',
+        'Χωράφι',
         'Ημερομηνία',
         'Λίτρα Λαδιού',
         'Κιλά Ελιάς',
@@ -383,8 +390,9 @@ class BackupService {
         sheetHarvests.setColumnWidth(i, 18.0);
       }
       for (var h in harvests) {
+        String groveName = groveNameMap[h['groveId'].toString()] ?? 'Άγνωστο';
         sheetHarvests.appendRow([
-          TextCellValue(h['groveId'].toString()),
+          TextCellValue(groveName),
           TextCellValue(h['date'].toString().split('T')[0]),
           DoubleCellValue(h['oilVolume'] as double),
           DoubleCellValue(h['olivesWeight'] as double),
@@ -396,8 +404,9 @@ class BackupService {
       // Αποθήκευση και Κοινοποίηση
       var fileBytes = excel.save();
       final directory = await getTemporaryDirectory();
-      final path =
-          "${directory.path}/OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}.xlsx";
+      final fileName =
+          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}_${DateTime.now().year}.xlsx';
+      final path = "${directory.path}/$fileName";
 
       await File(path).writeAsBytes(fileBytes!, flush: true);
 
@@ -411,6 +420,262 @@ class BackupService {
       return true;
     } catch (e) {
       AppLogger.error('Σφάλμα Excel', e);
+      return false;
+    }
+  }
+
+  // --- 5. ΑΠΟΘΗΚΕΥΣΗ EXCEL ΤΟΠΙΚΑ (Χωρίς κοινοποίηση) ---
+  static Future<bool> saveExcelLocally() async {
+    try {
+      await _requestStoragePermission();
+
+      var excel = Excel.createExcel();
+      final db = await DatabaseHelper.instance.database;
+
+      final groves = await db.query('groves');
+      final tasks = await db.query('tasks');
+      final harvests = await db.query('harvests');
+
+      CellStyle headerStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#2E7D32'),
+        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+        horizontalAlign: HorizontalAlign.Center,
+      );
+
+      CellStyle totalStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#E0E0E0'),
+      );
+
+      excel.rename('Sheet1', 'Χωράφια - Στατιστικά');
+      Sheet sheetGroves = excel['Χωράφια - Στατιστικά'];
+
+      List<String> groveHeaders = [
+        'Όνομα Χωραφιού',
+        'Στρέμματα',
+        'Δέντρα',
+        'Περιοχή / Τοποθεσία',
+        'Συνολικά Έξοδα (€)',
+        'Συνολικά Έσοδα (€)',
+        'Καθαρό Κέρδος (€)',
+        'Λίτρα Λαδιού',
+        'Κιλά Ελιάς',
+        'Απόδοση (L/Στρέμμα)',
+        'Απόδοση (L/Δέντρο)',
+        'Κέρδος (€/Δέντρο)',
+      ];
+      sheetGroves.appendRow(groveHeaders.map((h) => TextCellValue(h)).toList());
+
+      for (int i = 0; i < groveHeaders.length; i++) {
+        sheetGroves
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetGroves.setColumnWidth(i, 22.0);
+      }
+
+      double sumExpenses = 0, sumRevenue = 0, sumProfit = 0, sumOil = 0;
+      int currentRow = 1;
+
+      for (var g in groves) {
+        String groveId = g['id'].toString();
+        String name = g['name'].toString();
+        double area = (g['area'] as num).toDouble();
+
+        String locationStr = 'Μη διαθέσιμη';
+        if (g['lat'] != null && g['lng'] != null) {
+          double lat = (g['lat'] as num).toDouble();
+          double lng = (g['lng'] as num).toDouble();
+
+          try {
+            final geoUrl = Uri.parse(
+              'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lng&localityLanguage=el',
+            );
+            final geoResponse = await http
+                .get(geoUrl)
+                .timeout(const Duration(seconds: 3));
+
+            if (geoResponse.statusCode == 200) {
+              final geoData = json.decode(geoResponse.body);
+              String city = geoData['city'] ?? geoData['locality'] ?? '';
+
+              if (city.isNotEmpty) {
+                locationStr =
+                    '$city (${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)})';
+              } else {
+                locationStr =
+                    '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+              }
+            } else {
+              locationStr =
+                  '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+            }
+          } catch (e) {
+            locationStr =
+                '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+          }
+        }
+
+        double totalCost = 0.0;
+        final groveTasks = await db.query(
+          'tasks',
+          where: 'groveId = ?',
+          whereArgs: [groveId],
+        );
+        for (var t in groveTasks) {
+          totalCost += (t['cost'] as num).toDouble();
+        }
+
+        double totalOil = 0.0, totalOlives = 0.0, totalRevenue = 0.0;
+        final groveHarvests = await db.query(
+          'harvests',
+          where: 'groveId = ?',
+          whereArgs: [groveId],
+        );
+        for (var h in groveHarvests) {
+          double oil = (h['oilVolume'] as num).toDouble();
+          double price = (h['pricePerUnit'] as num).toDouble();
+          totalOil += oil;
+          totalOlives += (h['olivesWeight'] as num).toDouble();
+          totalRevenue += (oil * price);
+        }
+
+        double netProfit = totalRevenue - totalCost;
+        double yieldPerStremma = area > 0 ? (totalOil / area) : 0.0;
+
+        int trees = g['treeCount'] != null ? g['treeCount'] as int : 0;
+        double yieldPerTree = trees > 0 ? (totalOil / trees) : 0.0;
+        double profitPerTree = trees > 0 ? (netProfit / trees) : 0.0;
+
+        sumExpenses += totalCost;
+        sumRevenue += totalRevenue;
+        sumProfit += netProfit;
+        sumOil += totalOil;
+
+        sheetGroves.appendRow([
+          TextCellValue(name),
+          DoubleCellValue(area),
+          IntCellValue(trees),
+          TextCellValue(locationStr),
+          DoubleCellValue(totalCost),
+          DoubleCellValue(totalRevenue),
+          DoubleCellValue(netProfit),
+          DoubleCellValue(totalOil),
+          DoubleCellValue(totalOlives),
+          DoubleCellValue(double.parse(yieldPerStremma.toStringAsFixed(2))),
+          DoubleCellValue(double.parse(yieldPerTree.toStringAsFixed(2))),
+          DoubleCellValue(double.parse(profitPerTree.toStringAsFixed(2))),
+        ]);
+        currentRow++;
+      }
+
+      sheetGroves.appendRow([
+        TextCellValue('ΓΕΝΙΚΑ ΣΥΝΟΛΑ:'),
+        TextCellValue(''),
+        TextCellValue(''),
+        DoubleCellValue(sumExpenses),
+        DoubleCellValue(sumRevenue),
+        DoubleCellValue(sumProfit),
+        DoubleCellValue(sumOil),
+        TextCellValue(''),
+        TextCellValue(''),
+      ]);
+
+      for (int i = 0; i < groveHeaders.length; i++) {
+        sheetGroves
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: i,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            totalStyle;
+      }
+
+      // Δημιουργούμε Map groveId -> name
+      Map<String, String> groveNameMap = {};
+      for (var g in groves) {
+        groveNameMap[g['id'].toString()] = g['name'].toString();
+      }
+
+      Sheet sheetTasks = excel['Ιστορικό Εργασιών'];
+      List<String> taskHeaders = [
+        'Χωράφι',
+        'Τίτλος Εργασίας',
+        'Τύπος',
+        'Ημερομηνία',
+        'Κόστος (€)',
+      ];
+      sheetTasks.appendRow(taskHeaders.map((h) => TextCellValue(h)).toList());
+      for (int i = 0; i < taskHeaders.length; i++) {
+        sheetTasks
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetTasks.setColumnWidth(i, 18.0);
+      }
+      for (var t in tasks) {
+        String groveName = groveNameMap[t['groveId'].toString()] ?? 'Άγνωστο';
+        sheetTasks.appendRow([
+          TextCellValue(groveName),
+          TextCellValue(t['title'].toString()),
+          TextCellValue(t['type'].toString()),
+          TextCellValue(t['date'].toString().split('T')[0]),
+          DoubleCellValue(t['cost'] as double),
+        ]);
+      }
+
+      Sheet sheetHarvests = excel['Ιστορικό Συγκομιδών'];
+      List<String> harvestHeaders = [
+        'Χωράφι',
+        'Ημερομηνία',
+        'Λίτρα Λαδιού',
+        'Κιλά Ελιάς',
+        'Οξύτητα',
+        'Τιμή Πώλησης (€/L)',
+      ];
+      sheetHarvests.appendRow(
+        harvestHeaders.map((h) => TextCellValue(h)).toList(),
+      );
+      for (int i = 0; i < harvestHeaders.length; i++) {
+        sheetHarvests
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
+        sheetHarvests.setColumnWidth(i, 18.0);
+      }
+      for (var h in harvests) {
+        String groveName = groveNameMap[h['groveId'].toString()] ?? 'Άγνωστο';
+        sheetHarvests.appendRow([
+          TextCellValue(groveName),
+          TextCellValue(h['date'].toString().split('T')[0]),
+          DoubleCellValue(h['oilVolume'] as double),
+          DoubleCellValue(h['olivesWeight'] as double),
+          DoubleCellValue(h['acidity'] as double),
+          DoubleCellValue(h['pricePerUnit'] as double),
+        ]);
+      }
+
+      var fileBytes = excel.save();
+      final fileName =
+          'OliveManager_Report_${DateTime.now().day}_${DateTime.now().month}_${DateTime.now().year}.xlsx';
+
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+
+      if (selectedDirectory == null) {
+        AppLogger.warning('Ακύρωση αποθήκευσης αρχείου');
+        return false;
+      }
+
+      final filePath = join(selectedDirectory, fileName);
+      await File(filePath).writeAsBytes(fileBytes!, flush: true);
+
+      AppLogger.info('Excel αποθηκεύθηκε: $filePath');
+      return true;
+    } catch (e) {
+      AppLogger.error('Σφάλμα αποθήκευσης Excel', e);
       return false;
     }
   }

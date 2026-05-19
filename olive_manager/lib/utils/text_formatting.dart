@@ -108,9 +108,9 @@ class TextFormatting {
 
   // ✅ Format ROI score with color coding text
   static String formatRoiScore(double roi) {
-    if (roi >= 100) return '⭐ Εξαιρετικό (${roi.toStringAsFixed(0)}%)';
-    if (roi >= 20) return '👍 Καλό (${roi.toStringAsFixed(0)}%)';
-    if (roi >= 0) return '⚠️ Μέτριο (${roi.toStringAsFixed(0)}%)';
-    return '❌ Αρνητικό (${roi.toStringAsFixed(0)}%)';
+    if (roi >= 100) return 'Εξαιρετική (${roi.toStringAsFixed(0)}%)';
+    if (roi >= 20) return 'Καλή (${roi.toStringAsFixed(0)}%)';
+    if (roi >= 0) return 'Οριακή (${roi.toStringAsFixed(0)}%)';
+    return 'Αρνητική (${roi.toStringAsFixed(0)}%)';
   }
 }

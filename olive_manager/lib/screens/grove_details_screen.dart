@@ -185,9 +185,10 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
 
     // Η λίστα tasks είναι ταξινομημένη με την πιο πρόσφατη πρώτη
     final lastTask = tasks.first;
-    final int month = DateTime.now().month;
+    final int currentMonth = DateTime.now().month;
     final String type = lastTask.type.toLowerCase();
 
+    // ✅ 1. ΜΕ ΒΑΣΗ ΤΗΝ ΤΕΛΕΥΤΑΙΑ ΕΡΓΑΣΙΑ
     if (type.contains('συγκομιδή') || type.contains('μάζεμα')) {
       return {
         'title': 'Επόμενη: Ψεκασμός με Χαλκό',
@@ -199,22 +200,85 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     }
 
     if (type.contains('κλάδεμα')) {
-      return {
-        'title': 'Επόμενη: Βασική Λίπανση',
-        'msg':
-            'Το κλάδεμα ολοκληρώθηκε. Ενισχύστε τα δέντρα με λίπασμα για να βοηθήσετε τη νέα βλάστηση.',
-        'time': 'Τέλη Φεβρουαρίου - Μάρτιο',
-        'icon': Icons.science,
-      };
+      // ✅ Λίπανση προτείνεται ανάλογα με το μήνα του κλαδέματος
+      if (currentMonth >= 1 && currentMonth <= 4) {
+        // Χειμώνας-Ανοιξη: Η λίπανση γίνεται σύντομα
+        return {
+          'title': 'Επόμενη: Βασική Λίπανση',
+          'msg':
+              'Το κλάδεμα ολοκληρώθηκε. Ενισχύστε τα δέντρα με λίπασμα για να βοηθήσετε τη νέα βλάστηση.',
+          'time': 'Τέλη Φεβρουαρίου - Μάρτιο',
+          'icon': Icons.science,
+        };
+      } else if (currentMonth >= 5 && currentMonth <= 8) {
+        // Καλοκαίρι: Προτείνουμε άρδευση αντί για λίπανση (καύσωνας)
+        return {
+          'title': 'Επόμενη: Άρδευση (Πότισμα)',
+          'msg':
+              'Λόγω του καύσωνα, αφού κάνατε κλάδεμα, τα δέντρα χρειάζονται περισσότερη υγρασία. Ξεκινήστε την άρδευση.',
+          'time': 'Κάθε 10-15 ημέρες',
+          'icon': Icons.water_drop,
+        };
+      } else {
+        // Φθινόπωρο: Προσθήκη ενόργανων για το χειμώνα
+        return {
+          'title': 'Επόμενη: Ενόργανη Λίπανση',
+          'msg':
+              'Μετά το κλάδεμα, προσθέστε ενόργανα (κομπόστ/λίπασμα) για να προετοιμάσετε το δέντρο για το χειμώνα.',
+          'time': 'Σύντομα (Σεπτέμβριο-Οκτώβριο)',
+          'icon': Icons.eco,
+        };
+      }
     }
 
-    if (month >= 6 && month <= 8) {
+    // ✅ 2. ΜΕ ΒΑΣΗ ΤΟΝ ΤΡΕΧΟΝΤΑ ΜΗΝΑ (Αν δεν υπάρχει συγκεκριμένη λογική)
+    if (currentMonth >= 6 && currentMonth <= 8) {
       return {
         'title': 'Επόμενη: Άρδευση (Πότισμα)',
         'msg':
             'Λόγω υψηλών θερμοκρασιών, η προτεραιότητα είναι η διατήρηση της υγρασίας για την ανάπτυξη του καρπού.',
         'time': 'Κάθε 10-15 ημέρες',
         'icon': Icons.water_drop,
+      };
+    }
+
+    if (currentMonth >= 9 && currentMonth <= 11) {
+      return {
+        'title': 'Επόμενη: Φθινοπωρινή Προσοχή',
+        'msg':
+            'Ελέγξτε για τις τελευταίες προσβολές δάκου. Προετοιμάστε το δέντρο για τη συγκομιδή.',
+        'time': 'Συνεχώς',
+        'icon': Icons.bug_report,
+      };
+    }
+
+    if (currentMonth == 11 || currentMonth == 12) {
+      return {
+        'title': 'Επόμενη: Συγκομιδή',
+        'msg':
+            'Ήρθε η ώρα της συγκομιδής! Μαζέψτε τις ελιές όταν φτάσουν στη σωστή περίοδο ωρίμανσης.',
+        'time': 'Νοέμβριο-Δεκέμβριο',
+        'icon': Icons.shopping_basket,
+      };
+    }
+
+    if (currentMonth == 1 || currentMonth == 2) {
+      return {
+        'title': 'Επόμενη: Χειμερινό Κλάδεμα',
+        'msg':
+            'Είναι η ιδανική εποχή για χειμερινό κλάδεμα. Διαμορφώστε τα δέντρα για τη νέα σεζόν.',
+        'time': 'Ιανουάριο-Φεβρουάριο',
+        'icon': Icons.content_cut,
+      };
+    }
+
+    if (currentMonth >= 3 && currentMonth <= 5) {
+      return {
+        'title': 'Επόμενη: Άρδευση & Φυτοπροστασία',
+        'msg':
+            'Ανοιξιάτικη περίοδος: Ξεκινήστε την άρδευση και ελέγχου για μυκητολογικές ασθένειες.',
+        'time': 'Συνεχώς',
+        'icon': Icons.shield,
       };
     }
 
@@ -483,7 +547,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     // ΚΑΝΟΝΑΣ 1: Ιδανικές συνθήκες Δάκου (22°C - 30°C & Υγρασία > 60%)
     if (currentTemp! >= 22 && currentTemp! <= 30 && currentHumidity! > 60) {
       return {
-        'title': '🔴 ΚΙΝΔΥΝΟΣ ΔΑΚΟΥ / ΜΥΚΗΤΩΝ',
+        'title': 'ΚΙΝΔΥΝΟΣ ΔΑΚΟΥ / ΜΥΚΗΤΩΝ',
         'msg':
             'Ιδανικές συνθήκες (22-30°C & Υγρασία >60%) για ανάπτυξη δάκου. Ελέγξτε τις παγίδες και προγραμματίστε άμεσα ψεκασμό!',
         'color': Colors.red[700]!,
@@ -493,7 +557,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     // ΚΑΝΟΝΑΣ 2: Καύσωνας (Σκοτώνει τον Δάκο!)
     else if (currentTemp! > 35) {
       return {
-        'title': '🟢 ΑΔΡΑΝΟΠΟΙΗΣΗ ΔΑΚΟΥ',
+        'title': 'ΑΔΡΑΝΟΠΟΙΗΣΗ ΔΑΚΟΥ',
         'msg':
             'Ο καύσωνας (>35°C) αδρανοποιεί τον δάκο. ΔΕΝ απαιτείται εντομοκτόνο τώρα. Επικεντρωθείτε στην άρδευση του χωραφιού.',
         'color': Colors.green[700]!,
@@ -503,7 +567,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     // ΚΑΝΟΝΑΣ 3: Υπερβολική Υγρασία (Μύκητες)
     else if (currentHumidity! > 85) {
       return {
-        'title': '🟠 ΚΙΝΔΥΝΟΣ ΜΥΚΗΤΟΛΟΓΙΚΩΝ',
+        'title': 'ΚΙΝΔΥΝΟΣ ΜΥΚΗΤΟΛΟΓΙΚΩΝ',
         'msg':
             'Η υπερβολική υγρασία ευνοεί ασθένειες (π.χ. Κυκλοκόνιο, Γλοιοσπόριο). Αποφύγετε κλαδέματα αυτές τις μέρες.',
         'color': Colors.orange[700]!,
@@ -513,7 +577,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
     // ΚΑΝΟΝΑΣ 4: Ασφαλείς συνθήκες
     else {
       return {
-        'title': '🟢 ΧΑΜΗΛΟΣ ΚΙΝΔΥΝΟΣ',
+        'title': 'ΧΑΜΗΛΟΣ ΚΙΝΔΥΝΟΣ',
         'msg':
             'Οι τρέχουσες συνθήκες δεν ευνοούν την ανάπτυξη σοβαρών ασθενειών ή εντόμων. Ιδανικό για εργασίες.',
         'color': Colors.blue[700]!,
@@ -910,7 +974,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                       ).showSnackBar(
                                         const SnackBar(
                                           content: Text(
-                                            '✅ Δεδομένα καιρού ενημερώθηκαν',
+                                            'Δεδομένα καιρού ενημερώθηκαν',
                                           ),
                                           duration: Duration(seconds: 2),
                                           backgroundColor: Colors.green,
@@ -1194,7 +1258,7 @@ class _GroveDetailsScreenState extends State<GroveDetailsScreen>
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      '📡 Χάρτης δεν διαθέσιμος',
+                                      'Χάρτης δεν διαθέσιμος',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

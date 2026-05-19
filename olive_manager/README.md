@@ -1,17 +1,135 @@
-# olive_manager
+# Olive Manager - Διαχείριση Ελαιώνα
 
-A new Flutter project.
+Μια σύγχρονη εφαρμογή Flutter για τη **διαχείριση και παρακολούθηση ελαιώνων** με ολοκληρωμένα εργαλεία για αγρότες και γεωπόνους.
 
-## Getting Started
+## Περιγραφή
 
-This project is a starting point for a Flutter application.
+Η **Olive Manager** είναι μια ψηφιακή λύση που βοηθά τους αγρότες να:
 
-A few resources to get you started if this is your first Flutter project:
+- Καταγράφουν και οπτικοποιούν τα χωράφια τους στο χάρτη
+- Διαχειρίζονται εργασίες (κλάδεμα, ψεκασμό, λίπανση, κτλ)
+- Καταγράφουν συγκομιδές και αποδόσεις
+- Παρακολουθούν χρηματοοικονομικά στοιχεία (έξοδα, έσοδα, κέρδος)
+- Λαμβάνουν προβλέψεις καιρού και γεωπονικές συμβουλές
+- Αναλύουν στατιστικά και συγκρίσεις απόδοσης
+- Εξάγουν αναφορές PDF και Excel
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Κύρια Χαρακτηριστικά
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Διαχείριση Χωραφιών
+
+- Δημιουργία χωραφιών με GPS και χάρτη
+- Σχεδίαση ορίων περιοχής με αφή
+- Αυτόματος υπολογισμός εμβαδού σε στρέμματα
+- Αποθήκευση συντεταγμένων και πολύγωνων
+
+### Διαχείριση Εργασιών
+
+- Καταγραφή έργων (κλάδεμα, ψεκασμό, λίπανση, κτλ)
+- Προκαθορισμένα πρότυπα αγρότη (π.χ., Ψεκασμός Δάκου κάθε 21 μέρες)
+- Ημερολόγιο συγκεντρωτικό με όλες τις εργασίες
+- Καταχώρηση κόστους για κάθε εργασία
+
+### 🌾 Σύστημα Συγκομιδής
+
+- Καταγραφή προϊόντων (λίτρα λαδιού, κιλά ελιών)
+- Υπολογισμός ποιότητας (οξύτητα)
+- Ανάλυση κερδοφορίας ανά συγκομιδή
+- Εκτίμηση απόδοσης ανά δέντρο
+
+### Καιρικές Προβλέψεις & Συμβουλές
+
+- Ενσωμάτωση API Open-Meteo για πρόγνωση 14 ημερών
+- Ευφυής αλγόριθμος γεωπονικών συμβουλών ανάλογα τον μήνα
+- Προειδοποιήσεις για κακοκαιρία, παγετό και δράσεις παρασίτων
+- Πάγωση ιστορικών δεδομένων
+
+### Αναλυτικά & Στατιστικά
+
+- Σύγκριση απόδοσης χωραφιών
+- Ανάλυση κατηγοριών εξόδων (Pie charts)
+- Υπολογισμός ROI και κερδοφορίας
+- Εξαγωγή ετήσιων στατιστικών
+
+### Εξαγωγή & Αρχείοποίηση
+
+- Εκτύπωση και προεπισκόπηση PDF αναφορών
+- Εξαγωγή σε Excel με λεπτομέρειες
+- JSON backup/restore
+- Κοινοποίηση μέσω Email ή Google Drive
+
+### Υποστήριξη Offline
+
+- Λειτουργία χωρίς σύνδεση στο internet
+- Σύγχρονισμός δεδομένων όταν επανέρχεται η σύνδεση
+- Cached χάρτες για περιοχές
+
+## Τεχνολογίες
+
+- **Framework:** Flutter 3.x
+- **Database:** SQLite (sqflite)
+- **Maps:** Flutter Map + OSM Tile Servers
+- **APIs:** Open-Meteo (Καιρός), BigDataCloud (Reverse Geocoding)
+- **Charts:** FL Chart (Διαγράμματα)
+- **Export:** PDF (pdf package), Excel (excel package)
+- **Location:** Geolocator, Connectivity Plus
+
+## Υποστηριζόμενες Πλατφόρμες
+
+- Android 5.0+
+- iOS 11.0+
+- Web (experimental)
+- Windows, macOS, Linux (desktop)
+
+## Εγκατάσταση & Εκτέλεση
+
+### Προαπαιτήσεις
+
+- Flutter SDK 3.0+ ([Flutter Docs](https://docs.flutter.dev/get-started/install))
+- Dart SDK 3.0+
+- Ενεργή σύνδεση στο internet για APIs
+
+### Βήματα Εγκατάστασης
+
+```bash
+# Clone το repository
+git clone <repository-url>
+cd olive_manager
+
+# Εγκατάσταση dependencies
+flutter pub get
+
+# Εκτέλεση της εφαρμογής
+flutter run
+
+# ή για συγκεκριμένη συσκευή
+flutter run -d <device-id>
+```
+
+## Χρήση
+
+1. **Δημιουργία Χωραφιού:** Αρχική οθόνη → "Προσθήκη Χωραφιού"
+2. **Προσθήκη Εργασίας:** Χωράφι → "Νέα Εργασία"
+3. **Καταγραφή Συγκομιδής:** Χωράφι → "Νέα Συγκομιδή"
+4. **Προβολή Στατιστικών:** "Ανάλυση" tab
+5. **Εξαγωγή:** Menu → "Εκτύπωση Αναφοράς" ή "Export Excel"
+
+## Σημειώσεις Ανάπτυξης
+
+- Όλα τα ελληνικά κείμενα είναι UTF-8
+- Χρήση centralized utilities (ErrorHandler, AppLogger, TextFormatting)
+- Offline-first architecture με graceful fallbacks
+- Responsive UI για όλες τις συσκευές
+
+## 📄 Άδεια
+
+Αυτό το project είναι μέρος πτυχιακής εργασίας. ΤΜΗΜΑ ΕΠΙΣΤΗΜΗΣ ΥΠΟΛΟΓΙΣΤΩΝ ΠΑΝΕΠΙΣΤΗΜΙΟΥ ΚΡΗΤΗΣ
+ΕΠΟΠΤΗΣ ΚΑΘΗΓΗΤΗΣ: ΙΩΑΝΝΗΣ ΤΖΙΤΖΙΚΑΣ
+
+---
+
+**Δημιουργός:** Μπαρμπούνης Ιωάννης
+**Έκδοση:** 1.0.0
+**Τελευταία Ενημέρωση:** Μάιος 2026
+
+ΓΙΑ ΤΟ ΠΑΝΕΠΙΣΤΗΜΙΟ ΚΡΗΤΗΣ ΤΜΗΜΑ ΕΠΙΣΤΗΜΗΣ ΥΠΟΛΟΓΙΣΤΩΝ

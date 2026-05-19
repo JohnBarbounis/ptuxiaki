@@ -12,23 +12,23 @@ class AppLogger {
 
   /// Log debug message
   static void debug(String message) {
-    developer.log('🔍 $message', level: levelDebug);
+    developer.log('[DEBUG] $message', level: levelDebug);
   }
 
   /// Log info message
   static void info(String message) {
-    developer.log('ℹ️ $message', level: levelInfo);
+    developer.log('[INFO] $message', level: levelInfo);
   }
 
   /// Log warning message
   static void warning(String message) {
-    developer.log('⚠️ $message', level: levelWarning);
+    developer.log('[WARNING] $message', level: levelWarning);
   }
 
   /// Log error message
   static void error(String message, [Object? error, StackTrace? stackTrace]) {
     developer.log(
-      '❌ $message${error != null ? '\n$error' : ''}',
+      '[ERROR] $message${error != null ? '\n$error' : ''}',
       level: levelError,
       stackTrace: stackTrace,
     );
@@ -36,6 +36,6 @@ class AppLogger {
 
   /// Log API response or data
   static void trace(String label, dynamic data) {
-    developer.log('📊 $label: $data', level: levelDebug);
+    developer.log('[TRACE] $label: $data', level: levelDebug);
   }
 }

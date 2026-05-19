@@ -70,9 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final messenger = ScaffoldMessenger.of(context);
         messenger.showSnackBar(
           const SnackBar(
-            content: Text(
-              '📡 Δεν υπάρχει σύνδεση internet. Λειτουργία offline.',
-            ),
+            content: Text('Δεν υπάρχει σύνδεση internet. Λειτουργία offline.'),
             duration: Duration(seconds: 3),
             backgroundColor: Colors.orange,
           ),
@@ -471,79 +469,131 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                builder: (context) => Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Εξαγωγή Αναφορών',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-
-                      // --- ΕΠΙΛΟΓΕΣ PDF ---
-                      const Divider(),
-                      const ListTile(
-                        title: Text(
-                          'ΑΝΑΦΟΡΑ PDF',
+                builder: (context) => SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Εξαγωγή Αναφορών',
                           style: TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.green,
                           ),
                         ),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.share, color: Colors.blue),
-                        title: const Text('Κοινοποίηση PDF'),
-                        subtitle: const Text('Αποστολή σε Gmail, Drive, Viber'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          PdfService.shareReport();
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.print,
-                          color: Colors.blueGrey,
-                        ),
-                        title: const Text('Προβολή & Εκτύπωση'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          PdfService.printReport();
-                        },
-                      ),
+                        const SizedBox(height: 15),
 
-                      // --- ΕΠΙΛΟΓΕΣ EXCEL ---
-                      const Divider(),
-                      const ListTile(
-                        title: Text(
-                          'ΑΡΧΕΙΟ EXCEL',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                        // --- ΕΠΙΛΟΓΕΣ PDF ---
+                        const Divider(),
+                        const ListTile(
+                          title: Text(
+                            'ΑΝΑΦΟΡΑ PDF',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
                           ),
                         ),
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.table_chart,
-                          color: Colors.green,
+                        ListTile(
+                          leading: const Icon(Icons.share, color: Colors.blue),
+                          title: const Text('Κοινοποίηση PDF'),
+                          subtitle: const Text(
+                            'Αποστολή σε Gmail, Drive, Viber',
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            PdfService.shareReport();
+                          },
                         ),
-                        title: const Text('Κοινοποίηση Excel (.xlsx)'),
-                        subtitle: const Text(
-                          'Ιδανικό για λογιστές και επεξεργασία σε PC',
+                        ListTile(
+                          leading: const Icon(
+                            Icons.print,
+                            color: Colors.blueGrey,
+                          ),
+                          title: const Text('Προβολή & Εκτύπωση'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            PdfService.printReport();
+                          },
                         ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          BackupService.shareExcelReport();
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+
+                        // --- ΕΠΙΛΟΓΕΣ EXCEL ---
+                        const Divider(),
+                        const ListTile(
+                          title: Text(
+                            'ΑΡΧΕΙΟ EXCEL',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.table_chart,
+                            color: Colors.green,
+                          ),
+                          title: const Text(
+                            'Κοινοποίηση Excel (.xlsx)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: const Text(
+                            'Ιδανικό για λογιστές και επεξεργασία σε PC',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            BackupService.shareExcelReport();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.save, color: Colors.blue),
+                          title: const Text(
+                            'Αποθήκευση Excel Τοπικά',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: const Text(
+                            'Αποθήκευση στο κινητό σας',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Δημιουργία αρχείου...'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            final result =
+                                await BackupService.saveExcelLocally();
+                            if (result) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Excel αποθηκεύθηκε επιτυχώς!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Σφάλμα κατά την αποθήκευση'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -925,7 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       messenger.showSnackBar(
                                         const SnackBar(
                                           content: Text(
-                                            '✅ Δεδομένα καιρού ενημερώθηκαν',
+                                            'Δεδομένα καιρού ενημερώθηκαν',
                                           ),
                                           duration: Duration(seconds: 2),
                                           backgroundColor: Colors.green,

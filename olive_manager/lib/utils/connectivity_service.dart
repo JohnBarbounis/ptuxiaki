@@ -28,11 +28,11 @@ class ConnectivityService {
 
   /// Get user-friendly offline message
   static String getOfflineMessage() {
-    return '📡 Δεν υπάρχει σύνδεση στο internet. Η εφαρμογή λειτουργεί offline.';
+    return 'Δεν υπάρχει σύνδεση στο internet. Η εφαρμογή λειτουργεί offline.';
   }
 
   /// Get specific offline message for feature
   static String getOfflineFeatureMessage(String feature) {
-    return '📡 Δεν υπάρχει σύνδεση. Τα δεδομένα "$feature" δεν είναι διαθέσιμα offline.';
+    return 'Δεν υπάρχει σύνδεση. Τα δεδομένα "$feature" δεν είναι διαθέσιμα offline.';
   }
 }
