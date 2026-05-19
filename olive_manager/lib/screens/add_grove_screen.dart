@@ -386,22 +386,9 @@ class _AddGroveScreenState extends State<AddGroveScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _treeController,
-              decoration: const InputDecoration(
-                labelText: 'Αριθμός Ελαιόδεντρων',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.numbers),
-                suffixText: 'Δέντρα',
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) =>
-                  value!.isEmpty ? 'Εισάγετε αριθμό δέντρων' : null,
-            ),
-            const SizedBox(height: 24),
 
-            // --- ΝΕΟ WIDGET: ΤΟ TIP / ΟΔΗΓΟΣ ΧΑΡΤΗ ---
+            const SizedBox(height: 16),
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

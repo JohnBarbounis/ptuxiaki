@@ -565,8 +565,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text('Δημιουργία αρχείου...'),
                                 duration: Duration(seconds: 2),
@@ -574,15 +575,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                             final result =
                                 await BackupService.saveExcelLocally();
+                            if (!mounted) return;
                             if (result) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text('Excel αποθηκεύθηκε επιτυχώς!'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text('Σφάλμα κατά την αποθήκευση'),
                                   backgroundColor: Colors.red,
