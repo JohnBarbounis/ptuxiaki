@@ -13,8 +13,8 @@ import 'calendar_screen.dart';
 import 'comparison_screen.dart';
 import '../services/agronomist_service.dart';
 import '../utils/error_handler.dart';
-import '../utils/weather_icons.dart'; // ✅ Weather icon mapping
-import '../utils/app_logger.dart'; // ✅ Centralized logging
+import '../utils/weather_icons.dart'; //
+import '../utils/app_logger.dart'; //
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class HomeScreen extends StatefulWidget {
