@@ -121,7 +121,7 @@ flutter run -d <device-id>
 - Offline-first architecture με graceful fallbacks
 - Responsive UI για όλες τις συσκευές
 
-## 📄 Άδεια
+## Άδεια
 
 Αυτό το project είναι μέρος πτυχιακής εργασίας. ΤΜΗΜΑ ΕΠΙΣΤΗΜΗΣ ΥΠΟΛΟΓΙΣΤΩΝ ΠΑΝΕΠΙΣΤΗΜΙΟΥ ΚΡΗΤΗΣ
 ΕΠΟΠΤΗΣ ΚΑΘΗΓΗΤΗΣ: ΙΩΑΝΝΗΣ ΤΖΙΤΖΙΚΑΣ
